@@ -30,6 +30,10 @@ export const organizations = mysqlTable(
     name: varchar("name", { length: 160 }).notNull(),
     slug: varchar("slug", { length: 120 }).notNull(),
     planTier: varchar("planTier", { length: 32 }).notNull().default("foundation"),
+    ingestionRetryTaskUid: varchar("ingestionRetryTaskUid", { length: 65 }),
+    releaseApprovalStatus: mysqlEnum("releaseApprovalStatus", ["pending", "approved", "blocked"]).notNull().default("pending"),
+    releaseApprovalSummary: text("releaseApprovalSummary"),
+    releaseApprovedAt: timestamp("releaseApprovedAt"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
@@ -83,6 +87,26 @@ export const collectionAccess = mysqlTable(
   ],
 );
 
+export const organizationInvitations = mysqlTable(
+  "organization_invitations",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    orgId: int("orgId").notNull(),
+    invitedByUserId: int("invitedByUserId").notNull(),
+    email: varchar("email", { length: 320 }).notNull(),
+    role: mysqlEnum("role", ["admin", "member", "viewer"]).notNull().default("member"),
+    collectionIds: text("collectionIds").notNull(),
+    status: mysqlEnum("status", ["pending", "accepted", "revoked"]).notNull().default("pending"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    acceptedAt: timestamp("acceptedAt"),
+    revokedAt: timestamp("revokedAt"),
+  },
+  (table) => [
+    uniqueIndex("organization_invitations_org_email_pending_unique").on(table.orgId, table.email, table.status),
+    index("organization_invitations_email_status_idx").on(table.email, table.status),
+  ],
+);
+
 export const sourceStatusValues = ["queued", "parsing", "chunking", "embedding", "indexed", "failed", "retrieval_disabled"] as const;
 
 export const sources = mysqlTable(
@@ -115,6 +139,29 @@ export const sources = mysqlTable(
   ],
 );
 
+export const ingestionJobs = mysqlTable(
+  "ingestion_jobs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    orgId: int("orgId").notNull(),
+    sourceId: int("sourceId").notNull(),
+    status: mysqlEnum("status", ["queued", "processing", "retry_scheduled", "succeeded", "dead_letter"]).notNull().default("queued"),
+    idempotencyKey: varchar("idempotencyKey", { length: 128 }).notNull(),
+    attempts: int("attempts").notNull().default(0),
+    maxAttempts: int("maxAttempts").notNull().default(3),
+    nextAttemptAt: timestamp("nextAttemptAt"),
+    lastErrorCode: varchar("lastErrorCode", { length: 64 }),
+    lastErrorMessage: varchar("lastErrorMessage", { length: 500 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    startedAt: timestamp("startedAt"),
+    completedAt: timestamp("completedAt"),
+  },
+  (table) => [
+    uniqueIndex("ingestion_jobs_source_key_unique").on(table.sourceId, table.idempotencyKey),
+    index("ingestion_jobs_org_status_schedule_idx").on(table.orgId, table.status, table.nextAttemptAt),
+  ],
+);
+
 export const chunks = mysqlTable(
   "chunks",
   {
@@ -131,6 +178,7 @@ export const chunks = mysqlTable(
     charOffsetStart: int("charOffsetStart").notNull(),
     charOffsetEnd: int("charOffsetEnd").notNull(),
     contentHash: varchar("contentHash", { length: 64 }).notNull(),
+    embeddingJson: mediumtext("embeddingJson"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   },
   (table) => [

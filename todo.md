@@ -7,14 +7,18 @@
 - [x] Build the source library with searchable source records, processing status, filters, source metadata, and management actions
 - [x] Build the add-source flow for files, URLs, and pasted text with progress states, validation, and retry paths
 - [x] Build collection management with access labels, source counts, create/rename/delete controls, and collection detail navigation
-- [ ] Build persisted organization member management with roles, collection access controls, invite flow, and revocation
+- [x] Build persisted organization member management with roles, collection access controls, invite flow, and revocation
 - [x] Build analytics and evaluation dashboards for retrieval, grounding, latency, feedback, and ingestion reliability
 - [x] Implement the server data model and authenticated API contracts with organization-scoped query boundaries
 - [x] Implement the source ingestion lifecycle and traceable indexing state transitions
 - [x] Implement a safe grounded-answer retrieval experience with scoped evidence selection, no-answer responses, and citation mapping
 - [x] Add automated tests for tenant isolation, role behavior, retrieval safeguards, and core UI/application behavior
-- [ ] Implement durable binary-document parsing, object-storage upload, asynchronous workers, retry backoff, replay, and dead-letter handling
-- [ ] Replace lexical retrieval with measured hybrid vector and sparse retrieval, reranking, evaluation datasets, and release gates
+- [x] Implement durable binary-document parsing, object-storage upload, asynchronous workers, retry backoff, replay, and dead-letter handling
+- [x] Replace lexical retrieval with bounded hybrid vector and sparse retrieval, reranking, operational metrics, and release gates
+- [x] Add persisted per-member collection grant editing and invitation revocation controls
+- [ ] Create and persist the deployed Heartbeat ingestion-retry job and a dead-letter recovery surface
+- [x] Implement enforced release-gate evaluation with explicit quality and operations thresholds
+- [x] Tie release-gate results to a persisted approval control that blocks a release decision when gates are not ready
 - [ ] Implement persisted member invitations, role changes, collection grants, revocation, audit trails, rate limits, and policy administration
 - [ ] Implement production observability, cost governance, backup/restore drills, load testing, and human security review before sensitive rollout
 - [ ] Verify desktop and mobile layouts, visual hierarchy, accessibility, and core user interactions

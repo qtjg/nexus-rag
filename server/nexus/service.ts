@@ -1,21 +1,28 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import { randomUUID } from "node:crypto";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { createHash, randomUUID } from "node:crypto";
+import mammoth from "mammoth";
+import { PDFParse } from "pdf-parse";
 import {
   chunks,
   collectionAccess,
   collections,
   feedback,
+  ingestionJobs,
+  organizationInvitations,
   organizationMemberships,
   organizations,
   queries,
   queryCitations,
   sources,
+  users,
 } from "../../drizzle/schema";
 import { getDb } from "../db";
 import { invokeLLM } from "../_core/llm";
+import { createHeartbeatJob } from "../_core/heartbeat";
+import { storageGetSignedUrl, storagePut } from "../storage";
 import { assertCollectionAccess, assertOrganizationManager, canManageOrganization, canUploadToCollection, type AccessScope } from "./policy";
-import { buildGroundedPrompt, chunkText, citationMarkersResolve, createPipelineFingerprint, EVIDENCE_THRESHOLD, rankCandidateChunks } from "./retrieval";
+import { buildGroundedPrompt, chunkText, citationMarkersResolve, createLocalEmbedding, createPipelineFingerprint, EVIDENCE_THRESHOLD, rankCandidateChunks } from "./retrieval";
 
 const requireDb = async () => {
   const db = await getDb();
@@ -25,8 +32,54 @@ const requireDb = async () => {
 
 type CurrentUser = { id: number; name: string | null; email: string | null };
 
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function classifyIngestionError(error: unknown) {
+  const message = error instanceof Error ? error.message : "Ingestion failed";
+  if (/unsupported|extractable|malformed/i.test(message)) return { code: "PERMANENT_PARSE_FAILURE", retryable: false, message };
+  if (/fetch|network|timeout|storage/i.test(message)) return { code: "TRANSIENT_PROVIDER_ERROR", retryable: true, message };
+  return { code: "INGESTION_FAILED", retryable: true, message };
+}
+
+async function extractFileText(fileName: string, mimeType: string, bytes: Buffer) {
+  const extension = fileName.toLowerCase().split(".").pop() ?? "";
+  if (["txt", "md", "markdown", "csv", "json", "js", "jsx", "ts", "tsx", "py", "java", "go", "rs", "sql", "yaml", "yml"].includes(extension) || mimeType.startsWith("text/")) {
+    return bytes.toString("utf8");
+  }
+  if (extension === "docx" || mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+    const result = await mammoth.extractRawText({ buffer: bytes });
+    return result.value;
+  }
+  if (extension === "pdf" || mimeType === "application/pdf") {
+    const parser = new PDFParse({ data: bytes });
+    try {
+      return (await parser.getText()).text;
+    } finally {
+      await parser.destroy();
+    }
+  }
+  throw new Error("Unsupported file format. NEXUS currently accepts PDF, DOCX, text, Markdown, CSV, JSON, and supported source-code files.");
+}
+
+async function acceptPendingInvitations(db: NonNullable<Awaited<ReturnType<typeof getDb>>>, user: CurrentUser) {
+  if (!user.email) return;
+  const invitations = await db.select().from(organizationInvitations).where(and(eq(organizationInvitations.email, normalizeEmail(user.email)), eq(organizationInvitations.status, "pending")));
+  for (const invitation of invitations) {
+    const existing = (await db.select().from(organizationMemberships).where(and(eq(organizationMemberships.orgId, invitation.orgId), eq(organizationMemberships.userId, user.id))).limit(1))[0];
+    if (!existing) {
+      await db.insert(organizationMemberships).values({ orgId: invitation.orgId, userId: user.id, role: invitation.role });
+      const collectionIds = JSON.parse(invitation.collectionIds) as number[];
+      if (collectionIds.length) await db.insert(collectionAccess).values(collectionIds.map((collectionId) => ({ orgId: invitation.orgId, collectionId, userId: user.id }))).onDuplicateKeyUpdate({ set: { orgId: invitation.orgId } });
+    }
+    await db.update(organizationInvitations).set({ status: "accepted", acceptedAt: new Date() }).where(eq(organizationInvitations.id, invitation.id));
+  }
+}
+
 export async function ensureWorkspace(user: CurrentUser) {
   const db = await requireDb();
+  await acceptPendingInvitations(db, user);
   const existing = await db.select({ organization: organizations, membership: organizationMemberships })
     .from(organizationMemberships)
     .innerJoin(organizations, eq(organizationMemberships.orgId, organizations.id))
@@ -70,9 +123,37 @@ export async function getWorkspace(user: CurrentUser) {
     ? await db.select().from(sources).where(and(eq(sources.orgId, scope.orgId), inArray(sources.collectionId, scope.collectionIds))).orderBy(desc(sources.updatedAt))
     : [];
   const members = canManageOrganization(scope.role)
-    ? await db.select({ id: organizationMemberships.id, userId: organizationMemberships.userId, role: organizationMemberships.role }).from(organizationMemberships).where(eq(organizationMemberships.orgId, scope.orgId))
+    ? await db.select({ id: organizationMemberships.id, userId: organizationMemberships.userId, role: organizationMemberships.role, name: users.name, email: users.email }).from(organizationMemberships).innerJoin(users, eq(organizationMemberships.userId, users.id)).where(eq(organizationMemberships.orgId, scope.orgId)).orderBy(asc(users.email))
     : [];
-  return { organization, membership, collections: accessibleCollections, sources: accessibleSources, members };
+  const invitations = canManageOrganization(scope.role)
+    ? await db.select().from(organizationInvitations).where(and(eq(organizationInvitations.orgId, scope.orgId), eq(organizationInvitations.status, "pending"))).orderBy(desc(organizationInvitations.createdAt))
+    : [];
+  const memberGrants = canManageOrganization(scope.role)
+    ? await db.select({ userId: collectionAccess.userId, collectionId: collectionAccess.collectionId }).from(collectionAccess).where(eq(collectionAccess.orgId, scope.orgId))
+    : [];
+  const jobs = canManageOrganization(scope.role)
+    ? await db.select().from(ingestionJobs).where(eq(ingestionJobs.orgId, scope.orgId)).orderBy(desc(ingestionJobs.createdAt)).limit(25)
+    : [];
+  const recentQueries = await db.select({ latencyMs: queries.latencyMs, sufficientContext: queries.sufficientContext }).from(queries).where(eq(queries.orgId, scope.orgId)).orderBy(desc(queries.createdAt)).limit(200);
+  const recentFeedback = await db.select({ rating: feedback.rating }).from(feedback).where(eq(feedback.orgId, scope.orgId)).orderBy(desc(feedback.createdAt)).limit(200);
+  const successfulAnswers = recentQueries.filter((query) => query.sufficientContext).length;
+  const positiveFeedback = recentFeedback.filter((entry) => entry.rating === "up").length;
+  const metrics = {
+    queryCount: recentQueries.length,
+    evidenceRate: recentQueries.length ? Math.round((successfulAnswers / recentQueries.length) * 100) : null,
+    abstentionRate: recentQueries.length ? Math.round(((recentQueries.length - successfulAnswers) / recentQueries.length) * 100) : null,
+    averageLatencyMs: recentQueries.length ? Math.round(recentQueries.reduce((sum, query) => sum + query.latencyMs, 0) / recentQueries.length) : null,
+    feedbackRate: recentFeedback.length ? Math.round((positiveFeedback / recentFeedback.length) * 100) : null,
+    indexedSources: accessibleSources.filter((source) => source.status === "indexed").length,
+  };
+  const hasBaseline = metrics.queryCount >= 10;
+  const releaseGates = [
+    { id: "evidence", label: "Evidence coverage", status: !hasBaseline ? "baseline_required" : (metrics.evidenceRate ?? 0) >= 80 ? "pass" : "block", threshold: "≥80% grounded answers across 10 queries" },
+    { id: "feedback", label: "Answer feedback", status: recentFeedback.length < 5 ? "baseline_required" : (metrics.feedbackRate ?? 0) >= 70 ? "pass" : "block", threshold: "≥70% positive across 5 feedback events" },
+    { id: "ingestion", label: "Ingestion reliability", status: jobs.some((job) => job.status === "dead_letter") ? "block" : "pass", threshold: "No unresolved dead-letter jobs" },
+    { id: "scope", label: "Access policy", status: "pass", threshold: "Organization and collection filtering active" },
+  ] as const;
+  return { organization, membership, collections: accessibleCollections, sources: accessibleSources, members, invitations, memberGrants, jobs, metrics, releaseGates };
 }
 
 export async function createCollection(userId: number, orgId: number, name: string, description?: string) {
@@ -88,10 +169,7 @@ export async function ingestTextSource(input: { userId: number; orgId: number; c
   const scope = await getAccessScope(input.userId, input.orgId);
   assertCollectionAccess(scope, input.collectionId);
   if (!canUploadToCollection(scope.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Viewer accounts cannot ingest sources." });
-  const parsedChunks = chunkText(input.content);
-  if (!parsedChunks.length) throw new TRPCError({ code: "BAD_REQUEST", message: "This source had no extractable content." });
-  const crypto = await import("node:crypto");
-  const contentHash = crypto.createHash("sha256").update(input.content).digest("hex");
+  const contentHash = createHash("sha256").update(input.content).digest("hex");
   const db = await requireDb();
   const existing = (await db.select().from(sources).where(and(eq(sources.orgId, input.orgId), eq(sources.collectionId, input.collectionId), eq(sources.contentHash, contentHash))).limit(1))[0];
   if (existing) return existing;
@@ -108,24 +186,169 @@ export async function ingestTextSource(input: { userId: number; orgId: number; c
     status: "queued",
   });
   const sourceId = Number(inserted[0].insertId);
-  await db.update(sources).set({ status: "parsing" }).where(and(eq(sources.id, sourceId), eq(sources.orgId, input.orgId)));
-  await db.update(sources).set({ status: "chunking" }).where(and(eq(sources.id, sourceId), eq(sources.orgId, input.orgId)));
-  await db.insert(chunks).values(parsedChunks.map((chunk) => ({
-    orgId: input.orgId,
-    sourceId,
-    collectionId: input.collectionId,
-    text: chunk.text,
-    title: input.name,
-    sectionPath: chunk.sectionPath,
-    ordinal: chunk.ordinal,
-    tokenCount: chunk.tokenCount,
-    charOffsetStart: chunk.charOffsetStart,
-    charOffsetEnd: chunk.charOffsetEnd,
-    contentHash: chunk.contentHash,
-  })));
-  await db.update(sources).set({ status: "embedding" }).where(and(eq(sources.id, sourceId), eq(sources.orgId, input.orgId)));
-  await db.update(sources).set({ status: "indexed" }).where(and(eq(sources.id, sourceId), eq(sources.orgId, input.orgId)));
+  const job = await db.insert(ingestionJobs).values({ orgId: input.orgId, sourceId, idempotencyKey: `${contentHash}:text-v1` });
+  await processIngestionJob(input.orgId, Number(job[0].insertId));
   return (await db.select().from(sources).where(and(eq(sources.id, sourceId), eq(sources.orgId, input.orgId))).limit(1))[0]!;
+}
+
+export async function ingestFileSource(input: { userId: number; orgId: number; collectionId: number; name: string; mimeType: string; bytes: Buffer }) {
+  const scope = await getAccessScope(input.userId, input.orgId);
+  assertCollectionAccess(scope, input.collectionId);
+  if (!canUploadToCollection(scope.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Viewer accounts cannot ingest sources." });
+  if (!input.bytes.length) throw new TRPCError({ code: "BAD_REQUEST", message: "The uploaded file was empty." });
+  if (input.bytes.length > 25 * 1024 * 1024) throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "Files must be 25MB or smaller." });
+  const contentHash = createHash("sha256").update(input.bytes).digest("hex");
+  const db = await requireDb();
+  const existing = (await db.select().from(sources).where(and(eq(sources.orgId, input.orgId), eq(sources.collectionId, input.collectionId), eq(sources.contentHash, contentHash))).limit(1))[0];
+  if (existing) return existing;
+  const stored = await storagePut(`org-${input.orgId}/sources/${input.name}`, input.bytes, input.mimeType);
+  const inserted = await db.insert(sources).values({ orgId: input.orgId, collectionId: input.collectionId, createdByUserId: input.userId, type: "file", name: input.name, storageKey: stored.key, contentHash, status: "queued", parserVersion: "binary-v1" });
+  const sourceId = Number(inserted[0].insertId);
+  const job = await db.insert(ingestionJobs).values({ orgId: input.orgId, sourceId, idempotencyKey: `${contentHash}:binary-v1` });
+  await processIngestionJob(input.orgId, Number(job[0].insertId));
+  return (await db.select().from(sources).where(and(eq(sources.id, sourceId), eq(sources.orgId, input.orgId))).limit(1))[0]!;
+}
+
+export async function processIngestionJob(orgId: number, jobId: number) {
+  const db = await requireDb();
+  const job = (await db.select().from(ingestionJobs).where(and(eq(ingestionJobs.id, jobId), eq(ingestionJobs.orgId, orgId))).limit(1))[0];
+  if (!job || job.status === "succeeded" || job.status === "dead_letter") return job;
+  const source = (await db.select().from(sources).where(and(eq(sources.id, job.sourceId), eq(sources.orgId, orgId))).limit(1))[0];
+  if (!source || source.status === "retrieval_disabled") return job;
+  const attempts = job.attempts + 1;
+  await db.update(ingestionJobs).set({ status: "processing", attempts, startedAt: new Date(), lastErrorCode: null, lastErrorMessage: null }).where(eq(ingestionJobs.id, jobId));
+  try {
+    await db.update(sources).set({ status: "parsing", errorCode: null, errorMessage: null }).where(eq(sources.id, source.id));
+    let content = source.extractedText || "";
+    if (!content) {
+      if (!source.storageKey) throw new Error("No stored source content was available for replay.");
+      const signedUrl = await storageGetSignedUrl(source.storageKey);
+      const response = await fetch(signedUrl);
+      if (!response.ok) throw new Error(`Storage fetch failed with status ${response.status}.`);
+      const bytes = Buffer.from(await response.arrayBuffer());
+      content = await extractFileText(source.name, response.headers.get("content-type") || "application/octet-stream", bytes);
+      if (!content.trim()) throw new Error("This source had no extractable content.");
+      await db.update(sources).set({ extractedText: content }).where(eq(sources.id, source.id));
+    }
+    await db.update(sources).set({ status: "chunking" }).where(eq(sources.id, source.id));
+    const parsedChunks = chunkText(content);
+    if (!parsedChunks.length) throw new Error("This source had no extractable content.");
+    await db.delete(chunks).where(and(eq(chunks.sourceId, source.id), eq(chunks.orgId, orgId)));
+    await db.insert(chunks).values(parsedChunks.map((chunk) => ({ orgId, sourceId: source.id, collectionId: source.collectionId, text: chunk.text, title: source.name, sectionPath: chunk.sectionPath, ordinal: chunk.ordinal, tokenCount: chunk.tokenCount, charOffsetStart: chunk.charOffsetStart, charOffsetEnd: chunk.charOffsetEnd, contentHash: chunk.contentHash, embeddingJson: JSON.stringify(createLocalEmbedding(`${source.name} ${chunk.sectionPath ?? ""} ${chunk.text}`)) })));
+    await db.update(sources).set({ status: "embedding" }).where(eq(sources.id, source.id));
+    await db.update(sources).set({ status: "indexed" }).where(eq(sources.id, source.id));
+    await db.update(ingestionJobs).set({ status: "succeeded", completedAt: new Date(), nextAttemptAt: null }).where(eq(ingestionJobs.id, jobId));
+  } catch (error) {
+    const classified = classifyIngestionError(error);
+    const willRetry = classified.retryable && attempts < job.maxAttempts;
+    const nextAttemptAt = willRetry ? new Date(Date.now() + 1_000 * 60 * Math.pow(2, attempts - 1)) : null;
+    await db.update(sources).set({ status: "failed", errorCode: classified.code, errorMessage: classified.message.slice(0, 500) }).where(eq(sources.id, source.id));
+    await db.update(ingestionJobs).set({ status: willRetry ? "retry_scheduled" : "dead_letter", nextAttemptAt, lastErrorCode: classified.code, lastErrorMessage: classified.message.slice(0, 500), completedAt: willRetry ? null : new Date() }).where(eq(ingestionJobs.id, jobId));
+  }
+  return (await db.select().from(ingestionJobs).where(eq(ingestionJobs.id, jobId)).limit(1))[0];
+}
+
+export async function replayIngestionJob(userId: number, orgId: number, jobId: number) {
+  const scope = await getAccessScope(userId, orgId);
+  assertOrganizationManager(scope);
+  const db = await requireDb();
+  const job = (await db.select().from(ingestionJobs).where(and(eq(ingestionJobs.id, jobId), eq(ingestionJobs.orgId, orgId))).limit(1))[0];
+  if (!job) throw new TRPCError({ code: "NOT_FOUND", message: "Ingestion job not found in this workspace." });
+  await db.update(ingestionJobs).set({ status: "queued", attempts: 0, nextAttemptAt: null, lastErrorCode: null, lastErrorMessage: null, completedAt: null }).where(eq(ingestionJobs.id, job.id));
+  return processIngestionJob(orgId, job.id);
+}
+
+export async function processDueIngestionJobs(limit = 10) {
+  const db = await requireDb();
+  const dueJobs = await db.select().from(ingestionJobs).where(and(
+    eq(ingestionJobs.status, "retry_scheduled"),
+    or(isNull(ingestionJobs.nextAttemptAt), lte(ingestionJobs.nextAttemptAt, new Date())),
+  )).orderBy(asc(ingestionJobs.createdAt)).limit(Math.min(Math.max(limit, 1), 25));
+  const processed = [] as number[];
+  for (const job of dueJobs) {
+    await processIngestionJob(job.orgId, job.id);
+    processed.push(job.id);
+  }
+  return { processed, count: processed.length };
+}
+
+export async function configureIngestionRetrySchedule(input: { userId: number; orgId: number; sessionToken: string }) {
+  const scope = await getAccessScope(input.userId, input.orgId);
+  assertOrganizationManager(scope);
+  const db = await requireDb();
+  const organization = (await db.select().from(organizations).where(eq(organizations.id, input.orgId)).limit(1))[0];
+  if (!organization) throw new TRPCError({ code: "NOT_FOUND", message: "Organization not found." });
+  if (organization.ingestionRetryTaskUid) return { taskUid: organization.ingestionRetryTaskUid, created: false };
+  const schedule = await createHeartbeatJob({
+    name: `nexus-ingestion-retry-${organization.id}`,
+    cron: "0 */5 * * * *",
+    path: "/api/scheduled/ingestion-retry",
+    description: `Retry due ingestion jobs for ${organization.name}`,
+  }, input.sessionToken);
+  await db.update(organizations).set({ ingestionRetryTaskUid: schedule.taskUid }).where(eq(organizations.id, organization.id));
+  return { taskUid: schedule.taskUid, created: true, nextExecutionAt: schedule.nextExecutionAt ?? null };
+}
+
+export async function decideReleaseApproval(user: CurrentUser, orgId: number) {
+  const workspace = await getWorkspace(user);
+  if (workspace.organization.id !== orgId) throw new TRPCError({ code: "FORBIDDEN", message: "This release decision is outside your current organization scope." });
+  const scope = await getAccessScope(user.id, orgId);
+  assertOrganizationManager(scope);
+  const blocked = workspace.releaseGates.some((gate) => gate.status !== "pass");
+  const db = await requireDb();
+  const status = blocked ? "blocked" : "approved";
+  const summary = JSON.stringify({ decidedAt: new Date().toISOString(), gates: workspace.releaseGates });
+  await db.update(organizations).set({ releaseApprovalStatus: status, releaseApprovalSummary: summary, releaseApprovedAt: blocked ? null : new Date() }).where(eq(organizations.id, orgId));
+  return { approved: !blocked, status, gates: workspace.releaseGates };
+}
+
+export async function inviteMember(input: { userId: number; orgId: number; email: string; role: "admin" | "member" | "viewer"; collectionIds: number[] }) {
+  const scope = await getAccessScope(input.userId, input.orgId);
+  assertOrganizationManager(scope);
+  const db = await requireDb();
+  const email = normalizeEmail(input.email);
+  const permittedCollections = input.collectionIds.filter((collectionId) => scope.collectionIds.includes(collectionId));
+  if (input.role !== "admin" && !permittedCollections.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Members and viewers require at least one approved collection grant." });
+  const result = await db.insert(organizationInvitations).values({ orgId: input.orgId, invitedByUserId: input.userId, email, role: input.role, collectionIds: JSON.stringify(input.role === "admin" ? scope.collectionIds : permittedCollections) }).onDuplicateKeyUpdate({ set: { role: input.role, collectionIds: JSON.stringify(input.role === "admin" ? scope.collectionIds : permittedCollections), status: "pending", revokedAt: null } });
+  return { invitationId: Number(result[0].insertId || 0), email, status: "pending" as const };
+}
+
+export async function updateMemberAccess(input: { userId: number; orgId: number; memberUserId: number; role: "admin" | "member" | "viewer"; collectionIds: number[] }) {
+  const scope = await getAccessScope(input.userId, input.orgId);
+  assertOrganizationManager(scope);
+  const db = await requireDb();
+  const member = (await db.select().from(organizationMemberships).where(and(eq(organizationMemberships.orgId, input.orgId), eq(organizationMemberships.userId, input.memberUserId))).limit(1))[0];
+  if (!member) throw new TRPCError({ code: "NOT_FOUND", message: "Member not found in this organization." });
+  if (member.role === "owner") throw new TRPCError({ code: "FORBIDDEN", message: "The workspace owner cannot be changed through member administration." });
+  const grants = input.role === "admin" ? scope.collectionIds : input.collectionIds.filter((collectionId) => scope.collectionIds.includes(collectionId));
+  if (input.role !== "admin" && !grants.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Members and viewers require at least one collection grant." });
+  await db.update(organizationMemberships).set({ role: input.role }).where(eq(organizationMemberships.id, member.id));
+  await db.delete(collectionAccess).where(and(eq(collectionAccess.orgId, input.orgId), eq(collectionAccess.userId, input.memberUserId)));
+  if (grants.length) await db.insert(collectionAccess).values(grants.map((collectionId) => ({ orgId: input.orgId, collectionId, userId: input.memberUserId })));
+  return { success: true };
+}
+
+export async function revokeMember(input: { userId: number; orgId: number; memberUserId: number }) {
+  const scope = await getAccessScope(input.userId, input.orgId);
+  assertOrganizationManager(scope);
+  if (input.memberUserId === input.userId) throw new TRPCError({ code: "BAD_REQUEST", message: "You cannot revoke your own organization access." });
+  const db = await requireDb();
+  const member = (await db.select().from(organizationMemberships).where(and(eq(organizationMemberships.orgId, input.orgId), eq(organizationMemberships.userId, input.memberUserId))).limit(1))[0];
+  if (!member) throw new TRPCError({ code: "NOT_FOUND", message: "Member not found in this organization." });
+  if (member.role === "owner") throw new TRPCError({ code: "FORBIDDEN", message: "The workspace owner cannot be revoked." });
+  await db.delete(collectionAccess).where(and(eq(collectionAccess.orgId, input.orgId), eq(collectionAccess.userId, input.memberUserId)));
+  await db.delete(organizationMemberships).where(and(eq(organizationMemberships.orgId, input.orgId), eq(organizationMemberships.userId, input.memberUserId), ne(organizationMemberships.role, "owner")));
+  return { success: true };
+}
+
+export async function revokeInvitation(input: { userId: number; orgId: number; invitationId: number }) {
+  const scope = await getAccessScope(input.userId, input.orgId);
+  assertOrganizationManager(scope);
+  const db = await requireDb();
+  const invitation = (await db.select().from(organizationInvitations).where(and(eq(organizationInvitations.id, input.invitationId), eq(organizationInvitations.orgId, input.orgId), eq(organizationInvitations.status, "pending"))).limit(1))[0];
+  if (!invitation) throw new TRPCError({ code: "NOT_FOUND", message: "Pending invitation not found in this workspace." });
+  await db.update(organizationInvitations).set({ status: "revoked", revokedAt: new Date() }).where(eq(organizationInvitations.id, invitation.id));
+  return { success: true };
 }
 
 export async function removeSource(userId: number, orgId: number, sourceId: number) {
@@ -148,6 +371,9 @@ export async function askKnowledge(input: { userId: number; orgId: number; quest
   const collectionIds = requestedIds.filter((collectionId) => scope.collectionIds.includes(collectionId));
   if (!collectionIds.length) throw new TRPCError({ code: "FORBIDDEN", message: "The requested collection scope is not authorized." });
   const db = await requireDb();
+  const minuteAgo = new Date(Date.now() - 60_000);
+  const usage = await db.select({ count: sql<number>`count(*)` }).from(queries).where(and(eq(queries.orgId, scope.orgId), gte(queries.createdAt, minuteAgo)));
+  if (Number(usage[0]?.count ?? 0) >= 12) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "This workspace reached its protected query rate for the current minute. Please retry shortly." });
   const candidates = await db.select({
     id: chunks.id,
     sourceId: chunks.sourceId,
@@ -156,6 +382,7 @@ export async function askKnowledge(input: { userId: number; orgId: number; quest
     text: chunks.text,
     title: chunks.title,
     sectionPath: chunks.sectionPath,
+    embeddingJson: chunks.embeddingJson,
   }).from(chunks).innerJoin(sources, eq(chunks.sourceId, sources.id)).where(and(
     eq(chunks.orgId, scope.orgId),
     inArray(chunks.collectionId, collectionIds),

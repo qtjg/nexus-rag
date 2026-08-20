@@ -1,0 +1,1 @@
+ALTER TABLE `organizations` ADD `ingestionRetryTaskUid` varchar(65);
