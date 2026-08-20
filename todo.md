@@ -1,0 +1,21 @@
+# Project TODO
+
+- [x] Review the complete PRD and translate its v1 scope into a full-stack NEXUS RAG build plan
+- [x] Establish the domain model for organizations, memberships, collections, sources, chunks, conversations, citations, and feedback
+- [x] Create the responsive product shell with workspace navigation, global search, user menu, and tenant context
+- [x] Build the grounded chat workspace with collection scoping, streaming-style responses, citations, source details, and answer feedback
+- [x] Build the source library with searchable source records, processing status, filters, source metadata, and management actions
+- [x] Build the add-source flow for files, URLs, and pasted text with progress states, validation, and retry paths
+- [x] Build collection management with access labels, source counts, create/rename/delete controls, and collection detail navigation
+- [ ] Build persisted organization member management with roles, collection access controls, invite flow, and revocation
+- [x] Build analytics and evaluation dashboards for retrieval, grounding, latency, feedback, and ingestion reliability
+- [x] Implement the server data model and authenticated API contracts with organization-scoped query boundaries
+- [x] Implement the source ingestion lifecycle and traceable indexing state transitions
+- [x] Implement a safe grounded-answer retrieval experience with scoped evidence selection, no-answer responses, and citation mapping
+- [x] Add automated tests for tenant isolation, role behavior, retrieval safeguards, and core UI/application behavior
+- [ ] Implement durable binary-document parsing, object-storage upload, asynchronous workers, retry backoff, replay, and dead-letter handling
+- [ ] Replace lexical retrieval with measured hybrid vector and sparse retrieval, reranking, evaluation datasets, and release gates
+- [ ] Implement persisted member invitations, role changes, collection grants, revocation, audit trails, rate limits, and policy administration
+- [ ] Implement production observability, cost governance, backup/restore drills, load testing, and human security review before sensitive rollout
+- [ ] Verify desktop and mobile layouts, visual hierarchy, accessibility, and core user interactions
+- [ ] Save a verified project checkpoint and deliver the completed implementation
