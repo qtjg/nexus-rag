@@ -40,6 +40,8 @@ jobs:
 
       - name: Run automated tests
         run: pnpm test
+        env:
+          BUILT_IN_FORGE_API_KEY: ci-mocked-llm-key
 
       - name: Build production bundle
         run: pnpm build
