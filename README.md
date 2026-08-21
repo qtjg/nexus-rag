@@ -60,6 +60,7 @@ Before any external deployment, run the validation commands above and review the
 | `docs/qa/public-corpus-evaluation-report.md` | Public-corpus quality evaluation, retrieval hardening, and cleanup proof |
 | `docs/qa/phase-4-guarded-verification.md` | Guarded SSO, API, connector, and analytics boundaries |
 | `docs/operations/external-review-handoff.md` | Backup, load/failure, and security-review execution package |
+| `docs/operations/external-scheduler-handoff.md` | External scheduler contract for the bounded ingestion-retry worker; no worker is activated by this record |
 | `docs/operations/external-review-evidence-register.md` | Evidence ledger and owner/reviewer sign-off fields |
 | `docs/architecture/prd-phase-gate-alignment.md` | Current PRD reconciliation and remaining gates |
 

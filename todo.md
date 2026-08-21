@@ -63,6 +63,10 @@
 - [x] Commit the current verified NEXUS RAG handoff changes and push them to github/main
 - [x] Verify the private GitHub repository contains the latest README, public-corpus evidence, and tracker state
 - [x] Verify the GitHub remote, default branch, and checkpoint-aligned repository status
+- [x] Add GitHub Actions continuous validation for type checking, automated tests, production builds, and production dependency auditing
+- [x] Document an external scheduler handoff contract for the existing bounded ingestion-retry worker without enabling a production worker
+- [ ] Validate and push the GitHub deployment-preparation changes to github/main
+- [ ] Present external hosting options and obtain a deployment-target decision before activating managed-service replacements
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
 - [x] Select and document a public, non-sensitive representative corpus with source URLs, licensing/usage notes, and adjudicated golden questions
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
