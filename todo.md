@@ -44,3 +44,6 @@
 - [x] Diagnose and remediate retrieval-quality failures on the user-authorized non-sensitive PRD corpus, then rerun its evaluation gate
 - [x] Raise the authorized corpus precision@5 to at least 85% and reduce p95 end-to-end query latency below 4,000 ms before marking the PRD quality gate passed
 - [x] Add a bounded grounded-answer generation deadline with a citation-complete extractive fallback, then verify the PRD p95 query target without unsupported answers
+- [x] Create the representative-corpus intake and execution template for owner-provided non-sensitive documents and adjudicated golden answers
+- [x] Create external-review evidence registers for the backup/restore rehearsal, realistic load/failure exercise, and qualified human security sign-off
+- [x] Define the approved Phase 4 expansion scope, dependencies, non-goals, and decision gates for SSO, connectors, usage analytics, and API access
