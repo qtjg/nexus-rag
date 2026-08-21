@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { askKnowledge, configureIngestionRetrySchedule, createCollection, decideReleaseApproval, getWorkspace, ingestFileSource, ingestTextSource, inviteMember, removeSource, replayIngestionJob, revokeInvitation, revokeMember, submitFeedback, updateMemberAccess } from "./nexus/service";
+import { askKnowledge, configureIngestionRetrySchedule, createCollection, decideReleaseApproval, getWorkspace, ingestFileSource, ingestTextSource, inviteMember, removeSource, replayIngestionJob, revokeInvitation, revokeMember, submitFeedback, updateMemberAccess, updateOrganizationPolicy } from "./nexus/service";
 
 const orgInput = z.object({ orgId: z.number().int().positive() });
 
@@ -27,6 +27,7 @@ export const appRouter = router({
     replayIngestion: protectedProcedure.input(orgInput.extend({ jobId: z.number().int().positive() })).mutation(({ ctx, input }) => replayIngestionJob(ctx.user.id, input.orgId, input.jobId)),
     configureIngestionRetry: protectedProcedure.input(orgInput).mutation(({ ctx, input }) => configureIngestionRetrySchedule({ userId: ctx.user.id, orgId: input.orgId, sessionToken: parseCookie(ctx.req.headers.cookie ?? "")[COOKIE_NAME] ?? "" })),
     decideReleaseApproval: protectedProcedure.input(orgInput).mutation(({ ctx, input }) => decideReleaseApproval(ctx.user, input.orgId)),
+    updatePolicy: protectedProcedure.input(orgInput.extend({ urlIngestionEnabled: z.boolean().optional(), safetyRestrictionsEnabled: z.boolean().optional(), sourceRetentionDays: z.number().int().min(1).max(3650).optional(), queryRateLimitPerMinute: z.number().int().min(1).max(120).optional() })).mutation(({ ctx, input }) => updateOrganizationPolicy({ ...input, userId: ctx.user.id })),
     inviteMember: protectedProcedure.input(orgInput.extend({ email: z.string().trim().email().max(320), role: z.enum(["admin", "member", "viewer"]), collectionIds: z.array(z.number().int().positive()).max(100) })).mutation(({ ctx, input }) => inviteMember({ ...input, userId: ctx.user.id })),
     updateMember: protectedProcedure.input(orgInput.extend({ memberUserId: z.number().int().positive(), role: z.enum(["admin", "member", "viewer"]), collectionIds: z.array(z.number().int().positive()).max(100) })).mutation(({ ctx, input }) => updateMemberAccess({ ...input, userId: ctx.user.id })),
     revokeMember: protectedProcedure.input(orgInput.extend({ memberUserId: z.number().int().positive() })).mutation(({ ctx, input }) => revokeMember({ ...input, userId: ctx.user.id })),

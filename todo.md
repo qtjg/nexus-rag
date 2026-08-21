@@ -19,7 +19,11 @@
 - [ ] Create and persist the deployed Heartbeat ingestion-retry job and a dead-letter recovery surface
 - [x] Implement enforced release-gate evaluation with explicit quality and operations thresholds
 - [x] Tie release-gate results to a persisted approval control that blocks a release decision when gates are not ready
-- [ ] Implement persisted member invitations, role changes, collection grants, revocation, audit trails, rate limits, and policy administration
-- [ ] Implement production observability, cost governance, backup/restore drills, load testing, and human security review before sensitive rollout
-- [ ] Verify desktop and mobile layouts, visual hierarchy, accessibility, and core user interactions
+- [x] Implement persisted member invitations, role changes, collection grants, revocation, audit trails, rate limits, and policy administration
+- [ ] Complete the external backup/restore rehearsal, load test, and qualified human security review before sensitive-data rollout
+- [x] Verify desktop and mobile layouts, visual hierarchy, accessibility, and core user interactions
+- [x] Run and document an accessibility verification pass across the main routes
+- [x] Perform and record responsive end-to-end interaction verification for chat, ingestion, settings, grants, and release decisions
+- [ ] Run a concrete accessibility QA pass across chat, sources, collections, evaluation, and settings
+- [ ] Exercise and record authenticated end-to-end flows for chat, ingestion, settings, access, retry, and release decisions
 - [ ] Save a verified project checkpoint and deliver the completed implementation

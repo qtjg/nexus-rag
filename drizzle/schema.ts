@@ -107,6 +107,37 @@ export const organizationInvitations = mysqlTable(
   ],
 );
 
+export const organizationPolicies = mysqlTable(
+  "organization_policies",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    orgId: int("orgId").notNull(),
+    urlIngestionEnabled: boolean("urlIngestionEnabled").notNull().default(false),
+    safetyRestrictionsEnabled: boolean("safetyRestrictionsEnabled").notNull().default(true),
+    sourceRetentionDays: int("sourceRetentionDays").notNull().default(365),
+    queryRateLimitPerMinute: int("queryRateLimitPerMinute").notNull().default(12),
+    updatedByUserId: int("updatedByUserId"),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => [uniqueIndex("organization_policies_org_unique").on(table.orgId)],
+);
+
+export const auditEvents = mysqlTable(
+  "audit_events",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    orgId: int("orgId").notNull(),
+    actorUserId: int("actorUserId"),
+    action: varchar("action", { length: 96 }).notNull(),
+    targetType: varchar("targetType", { length: 64 }).notNull(),
+    targetId: varchar("targetId", { length: 96 }),
+    summary: varchar("summary", { length: 500 }).notNull(),
+    metadataJson: text("metadataJson"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [index("audit_events_org_created_idx").on(table.orgId, table.createdAt)],
+);
+
 export const sourceStatusValues = ["queued", "parsing", "chunking", "embedding", "indexed", "failed", "retrieval_disabled"] as const;
 
 export const sources = mysqlTable(

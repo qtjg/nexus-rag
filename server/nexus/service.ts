@@ -4,6 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import mammoth from "mammoth";
 import { PDFParse } from "pdf-parse";
 import {
+  auditEvents,
   chunks,
   collectionAccess,
   collections,
@@ -11,6 +12,7 @@ import {
   ingestionJobs,
   organizationInvitations,
   organizationMemberships,
+  organizationPolicies,
   organizations,
   queries,
   queryCitations,
@@ -29,6 +31,27 @@ const requireDb = async () => {
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The knowledge data service is not available." });
   return db;
 };
+
+type NexusDb = NonNullable<Awaited<ReturnType<typeof getDb>>>;
+
+async function recordAudit(db: NexusDb, event: { orgId: number; actorUserId?: number | null; action: string; targetType: string; targetId?: string | number | null; summary: string; metadata?: unknown }) {
+  await db.insert(auditEvents).values({
+    orgId: event.orgId,
+    actorUserId: event.actorUserId ?? null,
+    action: event.action,
+    targetType: event.targetType,
+    targetId: event.targetId === undefined || event.targetId === null ? null : String(event.targetId),
+    summary: event.summary,
+    metadataJson: event.metadata === undefined ? null : JSON.stringify(event.metadata),
+  });
+}
+
+async function getOrganizationPolicy(db: NexusDb, orgId: number) {
+  const existing = (await db.select().from(organizationPolicies).where(eq(organizationPolicies.orgId, orgId)).limit(1))[0];
+  if (existing) return existing;
+  await db.insert(organizationPolicies).values({ orgId });
+  return (await db.select().from(organizationPolicies).where(eq(organizationPolicies.orgId, orgId)).limit(1))[0]!;
+}
 
 type CurrentUser = { id: number; name: string | null; email: string | null };
 
@@ -96,6 +119,8 @@ export async function ensureWorkspace(user: CurrentUser) {
   const orgId = Number(created[0].insertId);
   await db.insert(organizationMemberships).values({ orgId, userId: user.id, role: "owner" });
   await db.insert(collections).values({ orgId, name: "General knowledge", description: "Default collection for approved workspace evidence." });
+  await db.insert(organizationPolicies).values({ orgId });
+  await recordAudit(db, { orgId, actorUserId: user.id, action: "workspace.created", targetType: "organization", targetId: orgId, summary: "Created organization workspace" });
   const organization = (await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1))[0]!;
   const membership = (await db.select().from(organizationMemberships).where(and(eq(organizationMemberships.orgId, orgId), eq(organizationMemberships.userId, user.id))).limit(1))[0]!;
   return { organization, membership };
@@ -116,6 +141,7 @@ export async function getWorkspace(user: CurrentUser) {
   const { organization, membership } = await ensureWorkspace(user);
   const scope = await getAccessScope(user.id, organization.id);
   const db = await requireDb();
+  const policy = await getOrganizationPolicy(db, scope.orgId);
   const accessibleCollections = scope.collectionIds.length
     ? await db.select().from(collections).where(and(eq(collections.orgId, scope.orgId), inArray(collections.id, scope.collectionIds))).orderBy(asc(collections.name))
     : [];
@@ -133,6 +159,9 @@ export async function getWorkspace(user: CurrentUser) {
     : [];
   const jobs = canManageOrganization(scope.role)
     ? await db.select().from(ingestionJobs).where(eq(ingestionJobs.orgId, scope.orgId)).orderBy(desc(ingestionJobs.createdAt)).limit(25)
+    : [];
+  const recentAuditEvents = canManageOrganization(scope.role)
+    ? await db.select().from(auditEvents).where(eq(auditEvents.orgId, scope.orgId)).orderBy(desc(auditEvents.createdAt)).limit(20)
     : [];
   const recentQueries = await db.select({ latencyMs: queries.latencyMs, sufficientContext: queries.sufficientContext }).from(queries).where(eq(queries.orgId, scope.orgId)).orderBy(desc(queries.createdAt)).limit(200);
   const recentFeedback = await db.select({ rating: feedback.rating }).from(feedback).where(eq(feedback.orgId, scope.orgId)).orderBy(desc(feedback.createdAt)).limit(200);
@@ -153,7 +182,7 @@ export async function getWorkspace(user: CurrentUser) {
     { id: "ingestion", label: "Ingestion reliability", status: jobs.some((job) => job.status === "dead_letter") ? "block" : "pass", threshold: "No unresolved dead-letter jobs" },
     { id: "scope", label: "Access policy", status: "pass", threshold: "Organization and collection filtering active" },
   ] as const;
-  return { organization, membership, collections: accessibleCollections, sources: accessibleSources, members, invitations, memberGrants, jobs, metrics, releaseGates };
+  return { organization, membership, policy, collections: accessibleCollections, sources: accessibleSources, members, invitations, memberGrants, jobs, recentAuditEvents, metrics, releaseGates };
 }
 
 export async function createCollection(userId: number, orgId: number, name: string, description?: string) {
@@ -162,7 +191,25 @@ export async function createCollection(userId: number, orgId: number, name: stri
   const db = await requireDb();
   const result = await db.insert(collections).values({ orgId, name, description: description || null });
   const id = Number(result[0].insertId);
+  await recordAudit(db, { orgId, actorUserId: userId, action: "collection.created", targetType: "collection", targetId: id, summary: `Created collection ${name}` });
   return (await db.select().from(collections).where(eq(collections.id, id)).limit(1))[0]!;
+}
+
+export async function updateOrganizationPolicy(input: { userId: number; orgId: number; urlIngestionEnabled?: boolean; safetyRestrictionsEnabled?: boolean; sourceRetentionDays?: number; queryRateLimitPerMinute?: number }) {
+  const scope = await getAccessScope(input.userId, input.orgId);
+  assertOrganizationManager(scope);
+  const db = await requireDb();
+  await getOrganizationPolicy(db, input.orgId);
+  const update = {
+    urlIngestionEnabled: input.urlIngestionEnabled,
+    safetyRestrictionsEnabled: input.safetyRestrictionsEnabled,
+    sourceRetentionDays: input.sourceRetentionDays,
+    queryRateLimitPerMinute: input.queryRateLimitPerMinute,
+    updatedByUserId: input.userId,
+  };
+  await db.update(organizationPolicies).set(update).where(eq(organizationPolicies.orgId, input.orgId));
+  await recordAudit(db, { orgId: input.orgId, actorUserId: input.userId, action: "policy.updated", targetType: "organization_policy", targetId: input.orgId, summary: "Updated organization policy", metadata: update });
+  return getOrganizationPolicy(db, input.orgId);
 }
 
 export async function ingestTextSource(input: { userId: number; orgId: number; collectionId: number; name: string; content: string; sourceUrl?: string | null; type: "text" | "url" | "code" }) {
@@ -171,6 +218,8 @@ export async function ingestTextSource(input: { userId: number; orgId: number; c
   if (!canUploadToCollection(scope.role)) throw new TRPCError({ code: "FORBIDDEN", message: "Viewer accounts cannot ingest sources." });
   const contentHash = createHash("sha256").update(input.content).digest("hex");
   const db = await requireDb();
+  const policy = await getOrganizationPolicy(db, input.orgId);
+  if (input.type === "url" && !policy.urlIngestionEnabled) throw new TRPCError({ code: "FORBIDDEN", message: "URL ingestion is disabled by this workspace policy." });
   const existing = (await db.select().from(sources).where(and(eq(sources.orgId, input.orgId), eq(sources.collectionId, input.collectionId), eq(sources.contentHash, contentHash))).limit(1))[0];
   if (existing) return existing;
 
@@ -186,6 +235,7 @@ export async function ingestTextSource(input: { userId: number; orgId: number; c
     status: "queued",
   });
   const sourceId = Number(inserted[0].insertId);
+  await recordAudit(db, { orgId: input.orgId, actorUserId: input.userId, action: "source.queued", targetType: "source", targetId: sourceId, summary: `Queued ${input.type} source ${input.name}` });
   const job = await db.insert(ingestionJobs).values({ orgId: input.orgId, sourceId, idempotencyKey: `${contentHash}:text-v1` });
   await processIngestionJob(input.orgId, Number(job[0].insertId));
   return (await db.select().from(sources).where(and(eq(sources.id, sourceId), eq(sources.orgId, input.orgId))).limit(1))[0]!;
@@ -204,6 +254,7 @@ export async function ingestFileSource(input: { userId: number; orgId: number; c
   const stored = await storagePut(`org-${input.orgId}/sources/${input.name}`, input.bytes, input.mimeType);
   const inserted = await db.insert(sources).values({ orgId: input.orgId, collectionId: input.collectionId, createdByUserId: input.userId, type: "file", name: input.name, storageKey: stored.key, contentHash, status: "queued", parserVersion: "binary-v1" });
   const sourceId = Number(inserted[0].insertId);
+  await recordAudit(db, { orgId: input.orgId, actorUserId: input.userId, action: "source.queued", targetType: "source", targetId: sourceId, summary: `Queued file source ${input.name}` });
   const job = await db.insert(ingestionJobs).values({ orgId: input.orgId, sourceId, idempotencyKey: `${contentHash}:binary-v1` });
   await processIngestionJob(input.orgId, Number(job[0].insertId));
   return (await db.select().from(sources).where(and(eq(sources.id, sourceId), eq(sources.orgId, input.orgId))).limit(1))[0]!;
@@ -286,6 +337,7 @@ export async function configureIngestionRetrySchedule(input: { userId: number; o
     description: `Retry due ingestion jobs for ${organization.name}`,
   }, input.sessionToken);
   await db.update(organizations).set({ ingestionRetryTaskUid: schedule.taskUid }).where(eq(organizations.id, organization.id));
+  await recordAudit(db, { orgId: input.orgId, actorUserId: input.userId, action: "ingestion_retry.enabled", targetType: "organization", targetId: organization.id, summary: "Enabled five-minute ingestion retry worker", metadata: { taskUid: schedule.taskUid } });
   return { taskUid: schedule.taskUid, created: true, nextExecutionAt: schedule.nextExecutionAt ?? null };
 }
 
@@ -299,6 +351,7 @@ export async function decideReleaseApproval(user: CurrentUser, orgId: number) {
   const status = blocked ? "blocked" : "approved";
   const summary = JSON.stringify({ decidedAt: new Date().toISOString(), gates: workspace.releaseGates });
   await db.update(organizations).set({ releaseApprovalStatus: status, releaseApprovalSummary: summary, releaseApprovedAt: blocked ? null : new Date() }).where(eq(organizations.id, orgId));
+  await recordAudit(db, { orgId, actorUserId: user.id, action: "release.decision_recorded", targetType: "organization", targetId: orgId, summary: `Recorded ${status} release decision`, metadata: { gates: workspace.releaseGates } });
   return { approved: !blocked, status, gates: workspace.releaseGates };
 }
 
@@ -310,6 +363,7 @@ export async function inviteMember(input: { userId: number; orgId: number; email
   const permittedCollections = input.collectionIds.filter((collectionId) => scope.collectionIds.includes(collectionId));
   if (input.role !== "admin" && !permittedCollections.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Members and viewers require at least one approved collection grant." });
   const result = await db.insert(organizationInvitations).values({ orgId: input.orgId, invitedByUserId: input.userId, email, role: input.role, collectionIds: JSON.stringify(input.role === "admin" ? scope.collectionIds : permittedCollections) }).onDuplicateKeyUpdate({ set: { role: input.role, collectionIds: JSON.stringify(input.role === "admin" ? scope.collectionIds : permittedCollections), status: "pending", revokedAt: null } });
+  await recordAudit(db, { orgId: input.orgId, actorUserId: input.userId, action: "member.invited", targetType: "invitation", targetId: Number(result[0].insertId || 0), summary: `Invited ${email} as ${input.role}`, metadata: { collectionIds: input.role === "admin" ? scope.collectionIds : permittedCollections } });
   return { invitationId: Number(result[0].insertId || 0), email, status: "pending" as const };
 }
 
@@ -325,6 +379,7 @@ export async function updateMemberAccess(input: { userId: number; orgId: number;
   await db.update(organizationMemberships).set({ role: input.role }).where(eq(organizationMemberships.id, member.id));
   await db.delete(collectionAccess).where(and(eq(collectionAccess.orgId, input.orgId), eq(collectionAccess.userId, input.memberUserId)));
   if (grants.length) await db.insert(collectionAccess).values(grants.map((collectionId) => ({ orgId: input.orgId, collectionId, userId: input.memberUserId })));
+  await recordAudit(db, { orgId: input.orgId, actorUserId: input.userId, action: "member.access_updated", targetType: "member", targetId: input.memberUserId, summary: `Updated member role to ${input.role}`, metadata: { collectionIds: grants } });
   return { success: true };
 }
 
@@ -338,6 +393,7 @@ export async function revokeMember(input: { userId: number; orgId: number; membe
   if (member.role === "owner") throw new TRPCError({ code: "FORBIDDEN", message: "The workspace owner cannot be revoked." });
   await db.delete(collectionAccess).where(and(eq(collectionAccess.orgId, input.orgId), eq(collectionAccess.userId, input.memberUserId)));
   await db.delete(organizationMemberships).where(and(eq(organizationMemberships.orgId, input.orgId), eq(organizationMemberships.userId, input.memberUserId), ne(organizationMemberships.role, "owner")));
+  await recordAudit(db, { orgId: input.orgId, actorUserId: input.userId, action: "member.revoked", targetType: "member", targetId: input.memberUserId, summary: "Revoked organization membership" });
   return { success: true };
 }
 
@@ -348,6 +404,7 @@ export async function revokeInvitation(input: { userId: number; orgId: number; i
   const invitation = (await db.select().from(organizationInvitations).where(and(eq(organizationInvitations.id, input.invitationId), eq(organizationInvitations.orgId, input.orgId), eq(organizationInvitations.status, "pending"))).limit(1))[0];
   if (!invitation) throw new TRPCError({ code: "NOT_FOUND", message: "Pending invitation not found in this workspace." });
   await db.update(organizationInvitations).set({ status: "revoked", revokedAt: new Date() }).where(eq(organizationInvitations.id, invitation.id));
+  await recordAudit(db, { orgId: input.orgId, actorUserId: input.userId, action: "invitation.revoked", targetType: "invitation", targetId: invitation.id, summary: `Revoked invitation for ${invitation.email}` });
   return { success: true };
 }
 
@@ -360,6 +417,7 @@ export async function removeSource(userId: number, orgId: number, sourceId: numb
   if (scope.role === "viewer") throw new TRPCError({ code: "FORBIDDEN", message: "Viewer accounts cannot delete sources." });
   await db.update(sources).set({ status: "retrieval_disabled" }).where(and(eq(sources.id, sourceId), eq(sources.orgId, orgId)));
   await db.delete(chunks).where(and(eq(chunks.sourceId, sourceId), eq(chunks.orgId, orgId)));
+  await recordAudit(db, { orgId, actorUserId: userId, action: "source.retrieval_disabled", targetType: "source", targetId: sourceId, summary: `Disabled retrieval for source ${source.name}` });
   return { sourceId, retrievalDisabled: true };
 }
 
@@ -371,9 +429,10 @@ export async function askKnowledge(input: { userId: number; orgId: number; quest
   const collectionIds = requestedIds.filter((collectionId) => scope.collectionIds.includes(collectionId));
   if (!collectionIds.length) throw new TRPCError({ code: "FORBIDDEN", message: "The requested collection scope is not authorized." });
   const db = await requireDb();
+  const policy = await getOrganizationPolicy(db, scope.orgId);
   const minuteAgo = new Date(Date.now() - 60_000);
   const usage = await db.select({ count: sql<number>`count(*)` }).from(queries).where(and(eq(queries.orgId, scope.orgId), gte(queries.createdAt, minuteAgo)));
-  if (Number(usage[0]?.count ?? 0) >= 12) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "This workspace reached its protected query rate for the current minute. Please retry shortly." });
+  if (Number(usage[0]?.count ?? 0) >= policy.queryRateLimitPerMinute) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "This workspace reached its protected query rate for the current minute. Please retry shortly." });
   const candidates = await db.select({
     id: chunks.id,
     sourceId: chunks.sourceId,
