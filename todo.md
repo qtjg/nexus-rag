@@ -28,7 +28,7 @@
 - [x] Exercise and record authenticated end-to-end flows for chat, ingestion, settings, access, retry, and release decisions
 - [x] With explicit approval and a disposable test inbox, create and revoke a temporary member invitation; verify pending-invitation and audit-trail persistence
 - [x] Save a verified project checkpoint
-- [ ] Deliver the completed implementation
+- [x] Deliver the completed implementation
 - [x] Restore the audited dependency upgrades, Express route hardening, regression tests, and QA reports lost during the sandbox reset
 - [x] Add explicit accessible names and state semantics to remaining chat, source, and member-grant controls identified by route-level QA
 - [x] Reconcile the completed platform with the user-supplied PRD phase-gate instructions and document the remaining explicit approvals
@@ -61,8 +61,8 @@
 - [x] Add external GitHub deployment guidance, environment-variable inventory, and non-negotiable activation gates to the repository handoff
 - [x] Create and push a private GitHub repository named nexus-rag containing the verified application and documentation
 - [x] Commit the current verified NEXUS RAG handoff changes and push them to github/main
-- [ ] Verify the private GitHub repository contains the latest README, public-corpus evidence, and tracker state
-- [ ] Verify the GitHub remote, default branch, and checkpoint-aligned repository status
+- [x] Verify the private GitHub repository contains the latest README, public-corpus evidence, and tracker state
+- [x] Verify the GitHub remote, default branch, and checkpoint-aligned repository status
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
 - [x] Select and document a public, non-sensitive representative corpus with source URLs, licensing/usage notes, and adjudicated golden questions
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
