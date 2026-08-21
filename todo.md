@@ -27,7 +27,12 @@
 - [x] Complete and document full interactive accessibility QA across chat, sources, collections, evaluation, and settings, including keyboard focus order, dialog behavior, disabled states, and error/empty/loading states
 - [x] Exercise and record authenticated end-to-end flows for chat, ingestion, settings, access, retry, and release decisions
 - [x] With explicit approval and a disposable test inbox, create and revoke a temporary member invitation; verify pending-invitation and audit-trail persistence
-- [ ] Save a verified project checkpoint
+- [x] Save a verified project checkpoint
 - [ ] Deliver the completed implementation
 - [x] Restore the audited dependency upgrades, Express route hardening, regression tests, and QA reports lost during the sandbox reset
 - [x] Add explicit accessible names and state semantics to remaining chat, source, and member-grant controls identified by route-level QA
+- [x] Reconcile the completed platform with the user-supplied PRD phase-gate instructions and document the remaining explicit approvals
+- [ ] Build and run a PRD-compliant golden evaluation set against user-approved representative documents, reporting precision@5, recall@10, faithfulness, and unanswerable-case abstention accuracy
+- [ ] Add and run a two-organization database-backed retrieval isolation test that proves zero cross-tenant results through the actual query path
+- [ ] Obtain the qualified human security-review sign-off and realistic-load-test results required by the PRD before sensitive multi-tenant data is onboarded
+- [ ] Defer Phase 4 SSO, third-party connectors, usage analytics, and API access until explicit post-review authorization
