@@ -59,8 +59,8 @@
 - [x] Implement 4C privacy-preserving organization usage analytics without raw prompt or source-content retention
 - [x] Select and document a public, non-sensitive representative corpus with source URLs, licensing/usage notes, and adjudicated golden questions
 - [x] Add external GitHub deployment guidance, environment-variable inventory, and non-negotiable activation gates to the repository handoff
-- [ ] Create and push a private GitHub repository named nexus-rag containing the verified application and documentation
-- [ ] Commit the current verified NEXUS RAG handoff changes and push them to github/main
+- [x] Create and push a private GitHub repository named nexus-rag containing the verified application and documentation
+- [x] Commit the current verified NEXUS RAG handoff changes and push them to github/main
 - [ ] Verify the private GitHub repository contains the latest README, public-corpus evidence, and tracker state
 - [ ] Verify the GitHub remote, default branch, and checkpoint-aligned repository status
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
