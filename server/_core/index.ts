@@ -46,6 +46,9 @@ async function startServer() {
       createContext,
     })
   );
+  app.use("/api", (_req, res) => {
+    res.status(404).json({ error: "api_not_found" });
+  });
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);

@@ -184,6 +184,8 @@ export default function SourceLibrary() {
                 {sourceTypes.map((type) => (
                   <button
                     key={type.title}
+                    aria-pressed={sourceType === type.title}
+                    aria-label={`Choose ${type.title} source type`}
                     onClick={() => {
                       setSourceType(type.title);
                       setFilePayload(null);
@@ -197,21 +199,21 @@ export default function SourceLibrary() {
                 ))}
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_180px]">
-                <Input value={sourceName} onChange={(event) => setSourceName(event.target.value)} placeholder="Source name" className="border-white/10 bg-white/[0.03] text-slate-100 placeholder:text-slate-600" />
-                <select value={collectionId ?? ""} onChange={(event) => setCollectionId(Number(event.target.value))} className="h-10 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm text-slate-200 outline-none">
+                <Input aria-label="Source name" value={sourceName} onChange={(event) => setSourceName(event.target.value)} placeholder="Source name" className="border-white/10 bg-white/[0.03] text-slate-100 placeholder:text-slate-600" />
+                <select aria-label="Collection for this source" value={collectionId ?? ""} onChange={(event) => setCollectionId(Number(event.target.value))} className="h-10 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm text-slate-200 outline-none">
                   <option value="" disabled>Select collection</option>
                   {collections.map((collection) => <option key={collection.id} value={collection.id} className="bg-slate-900">{collection.name}</option>)}
                 </select>
               </div>
-              {sourceType === "Web page" ? <Input value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://example.com/knowledge" className="mt-3 border-white/10 bg-white/[0.03] text-slate-100 placeholder:text-slate-600" /> : null}
+              {sourceType === "Web page" ? <Input aria-label="Source URL" value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://example.com/knowledge" className="mt-3 border-white/10 bg-white/[0.03] text-slate-100 placeholder:text-slate-600" /> : null}
               {sourceType === "File" ? (
                 <label className="mt-3 flex cursor-pointer items-center justify-between rounded-2xl border border-dashed border-white/12 bg-white/[0.02] px-4 py-3 text-xs text-slate-500 hover:bg-white/[0.04]">
                   <span>{filePayload ? "File is ready for secure storage and processing" : "Choose PDF, DOCX, text, Markdown, CSV, or source code up to 25MB"}</span>
                   <span className="text-cyan-200">Choose file</span>
-                  <input type="file" accept=".pdf,.docx,.txt,.md,.markdown,.csv,.js,.jsx,.ts,.tsx,.py,.java,.go,.rs,.json" className="hidden" onChange={(event) => readSourceFile(event.target.files?.[0])} />
+                  <input aria-label="Choose a source file" type="file" accept=".pdf,.docx,.txt,.md,.markdown,.csv,.js,.jsx,.ts,.tsx,.py,.java,.go,.rs,.json" className="hidden" onChange={(event) => readSourceFile(event.target.files?.[0])} />
                 </label>
               ) : (
-                <Textarea value={content} onChange={(event) => setContent(event.target.value)} placeholder={sourceType === "Web page" ? "Paste the approved page content to index…" : "Paste the content that should become searchable evidence…"} className="mt-3 min-h-36 border-white/10 bg-white/[0.03] text-slate-100 placeholder:text-slate-600" />
+                <Textarea aria-label={sourceType === "Web page" ? "Approved page content" : "Source content"} value={content} onChange={(event) => setContent(event.target.value)} placeholder={sourceType === "Web page" ? "Paste the approved page content to index…" : "Paste the content that should become searchable evidence…"} className="mt-3 min-h-36 border-white/10 bg-white/[0.03] text-slate-100 placeholder:text-slate-600" />
               )}
               <div className="mt-4 flex items-center justify-between border-t border-white/7 pt-4">
                 <span className="max-w-sm text-[11px] leading-4 text-slate-500">File sources are stored outside the database and processed through a durable job with retry state and replay support.</span>
@@ -235,15 +237,15 @@ export default function SourceLibrary() {
           <div><p className="text-sm font-semibold text-white">All sources</p><p className="mt-1 text-xs text-slate-500">Status follows each source from intake through retrievable evidence.</p></div>
           <div className="flex h-9 items-center gap-2 rounded-xl border border-white/9 bg-white/[0.025] px-3 sm:w-64"><Search className="size-3.5 text-slate-500" /><input value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Search sources" placeholder="Search sources" className="w-full bg-transparent text-xs text-slate-200 outline-none placeholder:text-slate-600" /></div>
         </div>
-        {workspace.isLoading ? <div className="flex min-h-[330px] items-center justify-center gap-2 text-sm text-slate-500"><Loader2 className="size-4 animate-spin text-cyan-300" /> Loading secure inventory</div> : visibleSources.length ? (
+        {workspace.isLoading ? <div role="status" aria-live="polite" className="flex min-h-[330px] items-center justify-center gap-2 text-sm text-slate-500"><Loader2 className="size-4 animate-spin text-cyan-300" /> Loading secure inventory</div> : visibleSources.length ? (
           <div className="divide-y divide-white/6">
             {visibleSources.map((source) => (
               <article key={source.id} className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center">
                 <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-300/8"><FileText className="size-4 text-cyan-300" /></div>
                 <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-slate-100">{source.name}</p><p className="mt-1 text-xs text-slate-500">{collections.find((collection) => collection.id === source.collectionId)?.name ?? "Scoped collection"} · v{source.version} · {source.chunkingVersion}{source.errorMessage ? ` · ${source.errorMessage}` : ""}</p></div>
                 <Badge className={`w-fit border text-[10px] ${source.status === "indexed" ? "border-emerald-300/15 bg-emerald-300/[0.08] text-emerald-100" : source.status === "failed" ? "border-rose-300/15 bg-rose-300/[0.08] text-rose-100" : "border-cyan-300/15 bg-cyan-300/[0.08] text-cyan-100"}`}>{source.status.replace(/_/g, " ")}</Badge>
-                {source.status === "failed" && jobs.find((job) => job.sourceId === source.id) ? <Button onClick={() => replay.mutate({ orgId: organizationId!, jobId: jobs.find((job) => job.sourceId === source.id)!.id })} variant="ghost" size="icon" disabled={replay.isPending} className="size-8 text-cyan-200 hover:bg-cyan-300/10 hover:text-cyan-100"><RotateCcw className="size-3.5" /></Button> : null}
-                <Button onClick={() => { if (confirm(`Remove ${source.name} from future answers?`)) remove.mutate({ orgId: organizationId!, sourceId: source.id }); }} variant="ghost" size="icon" disabled={remove.isPending} className="size-8 text-slate-500 hover:bg-rose-400/10 hover:text-rose-200"><Trash2 className="size-3.5" /></Button>
+                {source.status === "failed" && jobs.find((job) => job.sourceId === source.id) ? <Button aria-label={`Replay ingestion for ${source.name}`} onClick={() => replay.mutate({ orgId: organizationId!, jobId: jobs.find((job) => job.sourceId === source.id)!.id })} variant="ghost" size="icon" disabled={replay.isPending} className="size-8 text-cyan-200 hover:bg-cyan-300/10 hover:text-cyan-100"><RotateCcw className="size-3.5" /></Button> : null}
+                <Button aria-label={`Remove ${source.name} from future retrieval`} onClick={() => { if (confirm(`Remove ${source.name} from future answers?`)) remove.mutate({ orgId: organizationId!, sourceId: source.id }); }} variant="ghost" size="icon" disabled={remove.isPending} className="size-8 text-slate-500 hover:bg-rose-400/10 hover:text-rose-200"><Trash2 className="size-3.5" /></Button>
               </article>
             ))}
           </div>

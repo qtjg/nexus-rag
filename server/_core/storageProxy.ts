@@ -2,10 +2,16 @@ import type { Express } from "express";
 import { ENV } from "./env";
 
 export function registerStorageProxy(app: Express) {
-  app.get("/manus-storage/*", async (req, res) => {
-    const key = (req.params as Record<string, string>)[0];
-    if (!key) {
-      res.status(400).send("Missing storage key");
+  app.get(["/manus-storage", "/manus-storage/"], (_req, res) => {
+    res.status(400).send("Missing storage key");
+  });
+
+  app.get("/manus-storage/*splat", async (req, res) => {
+    const splat = (req.params as Record<string, string | string[]>).splat;
+    const key = Array.isArray(splat) ? splat.join("/") : splat;
+    const hasUnsafeSegment = !key || key.split("/").some((segment) => segment === "." || segment === ".." || segment.length === 0);
+    if (hasUnsafeSegment || key.includes("\\") || key.includes("\0")) {
+      res.status(400).send("Invalid storage key");
       return;
     }
 

@@ -24,6 +24,10 @@
 - [x] Verify desktop and mobile layouts, visual hierarchy, accessibility, and core user interactions
 - [x] Run and document an accessibility verification pass across the main routes
 - [x] Perform and record responsive end-to-end interaction verification for chat, ingestion, settings, grants, and release decisions
-- [ ] Run a concrete accessibility QA pass across chat, sources, collections, evaluation, and settings
-- [ ] Exercise and record authenticated end-to-end flows for chat, ingestion, settings, access, retry, and release decisions
-- [ ] Save a verified project checkpoint and deliver the completed implementation
+- [x] Complete and document full interactive accessibility QA across chat, sources, collections, evaluation, and settings, including keyboard focus order, dialog behavior, disabled states, and error/empty/loading states
+- [x] Exercise and record authenticated end-to-end flows for chat, ingestion, settings, access, retry, and release decisions
+- [x] With explicit approval and a disposable test inbox, create and revoke a temporary member invitation; verify pending-invitation and audit-trail persistence
+- [ ] Save a verified project checkpoint
+- [ ] Deliver the completed implementation
+- [x] Restore the audited dependency upgrades, Express route hardening, regression tests, and QA reports lost during the sandbox reset
+- [x] Add explicit accessible names and state semantics to remaining chat, source, and member-grant controls identified by route-level QA
