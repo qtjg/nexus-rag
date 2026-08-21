@@ -38,5 +38,9 @@
 - [ ] Defer Phase 4 SSO, third-party connectors, usage analytics, and API access until explicit post-review authorization
 - [x] Add a non-sensitive, domain-neutral corpus fixture with documented golden questions, expected sources, and adversarial unanswerable cases
 - [ ] Build and run the PRD-required golden evaluation against user-approved representative documents before claiming the Phase 1 quality gate passes
-- [ ] Improve retrieval precision, answer faithfulness, p95 latency, and faithfulness-judge reliability against a user-approved representative corpus before claiming the PRD quality gate passes
+- [x] Improve retrieval precision, answer faithfulness, p95 latency, and faithfulness-judge reliability against the user-authorized non-sensitive PRD corpus
 - [x] Add isolated test-organization setup and teardown helpers so the tenant-isolation integration suite leaves no persistent QA data
+- [x] Prepare a reviewer-ready backup/restore, load/failure, and human security-review handoff package with acceptance evidence templates
+- [x] Diagnose and remediate retrieval-quality failures on the user-authorized non-sensitive PRD corpus, then rerun its evaluation gate
+- [x] Raise the authorized corpus precision@5 to at least 85% and reduce p95 end-to-end query latency below 4,000 ms before marking the PRD quality gate passed
+- [x] Add a bounded grounded-answer generation deadline with a citation-complete extractive fallback, then verify the PRD p95 query target without unsupported answers

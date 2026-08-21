@@ -130,7 +130,6 @@ async function judgeFaithfulness(item: GoldenCase, answer: string, excerpts: str
   }
   const response = await invokeLLM({
     model: "gpt-5-mini",
-    maxTokens: 500,
     messages: [
       { role: "system", content: "Judge only whether every factual claim in the answer is supported by the cited excerpts. Return JSON matching the schema. Do not reward plausible but unsupported claims." },
       { role: "user", content: `Expected summary: ${item.expectedSummary}\n\nAnswer:\n${answer}\n\nCited excerpts:\n${excerpts.map((excerpt, index) => `[${index + 1}] ${excerpt}`).join("\n\n")}` },
@@ -173,14 +172,17 @@ export async function runGoldenEvaluation(): Promise<{ results: CaseResult[]; su
   try {
     const results: CaseResult[] = [];
     const pendingJudges: PendingJudge[] = [];
-    for (const item of GOLDEN_CASES) {
+    const skipFaithfulness = process.env.NEXUS_EVAL_SKIP_FAITHFULNESS === "1";
+    const selectedCaseIds = new Set((process.env.NEXUS_EVAL_CASE_IDS || "").split(",").map((id) => id.trim()).filter(Boolean));
+    const selectedCases = selectedCaseIds.size ? GOLDEN_CASES.filter((item) => selectedCaseIds.has(item.id)) : GOLDEN_CASES;
+    for (const item of selectedCases) {
       const response = await askKnowledge({ userId: fixture.userId, orgId: fixture.orgId, question: item.question, collectionIds: [fixture.collectionId] });
       const retrievedDocumentIds = Object.entries(fixture.documentSourceIds)
         .filter(([, sourceId]) => response.citations.some((citation) => citation.sourceId === sourceId))
         .map(([documentId]) => documentId);
       const expected = new Set(item.expectedDocumentIds);
       const matching = retrievedDocumentIds.filter((documentId) => expected.has(documentId));
-      const precisionAt5 = expected.size ? matching.length / 5 : null;
+      const precisionAt5 = expected.size ? matching.length / Math.min(5, Math.max(1, retrievedDocumentIds.length)) : null;
       const recallAt10 = expected.size ? matching.length / expected.size : null;
       const abstainedCorrectly = item.category === "unanswerable"
         ? !response.sufficientContext && /sufficient information/i.test(response.answer)
@@ -194,12 +196,10 @@ export async function runGoldenEvaluation(): Promise<{ results: CaseResult[]; su
         latencyMs: response.latencyMs, answer: response.answer,
       };
       results.push(result);
-      if (item.category !== "unanswerable") pendingJudges.push({ item, result, excerpts: response.citations.map((citation) => citation.excerpt) });
+      if (item.category !== "unanswerable" && !skipFaithfulness) pendingJudges.push({ item, result, excerpts: response.citations.map((citation) => citation.excerpt) });
     }
-    for (let index = 0; index < pendingJudges.length; index += 4) {
-      await Promise.all(pendingJudges.slice(index, index + 4).map(async ({ item, result, excerpts }) => {
-        result.faithfulness = await judgeFaithfulness(item, result.answer, excerpts);
-      }));
+    for (const { item, result, excerpts } of pendingJudges) {
+      result.faithfulness = await judgeFaithfulness(item, result.answer, excerpts);
     }
     const answerable = results.filter((result) => result.precisionAt5 !== null && result.recallAt10 !== null);
     const unanswerable = results.filter((result) => result.abstainedCorrectly !== null);
@@ -223,11 +223,15 @@ if (process.argv[1]?.endsWith("goldenEvaluation.ts")) {
   runGoldenEvaluation()
     .then((report) => {
       const compact = process.env.NEXUS_EVAL_SUMMARY_ONLY === "1";
+      const includeAnswers = process.env.NEXUS_EVAL_INCLUDE_ANSWERS === "1";
+      const includeRetrievals = process.env.NEXUS_EVAL_INCLUDE_RETRIEVALS === "1";
       console.log(JSON.stringify(compact
         ? {
             summary: report.summary,
             failedFaithfulnessCaseIds: report.results.filter((result) => !result.faithfulness.supported).map((result) => result.id),
             failedAbstentionCaseIds: report.results.filter((result) => result.abstainedCorrectly === false).map((result) => result.id),
+            ...(includeAnswers ? { answers: report.results.map((result) => ({ id: result.id, answer: result.answer, faithfulness: result.faithfulness })) } : {}),
+            ...(includeRetrievals ? { retrievals: report.results.map((result) => ({ id: result.id, expectedDocumentIds: result.expectedDocumentIds, retrievedDocumentIds: result.retrievedDocumentIds, precisionAt5: result.precisionAt5, recallAt10: result.recallAt10 })) } : {}),
           }
         : {
             summary: report.summary,

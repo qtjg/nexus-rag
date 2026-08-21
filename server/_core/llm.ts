@@ -69,6 +69,7 @@ export type InvokeParams = {
   model?: string;
   thinking?: Record<string, unknown>;
   reasoning?: Record<string, unknown>;
+  timeoutMs?: number;
 };
 
 export type ToolCall = {
@@ -301,14 +302,18 @@ const computeBackoffDelay = (
 // returns the final Response so callers keep their existing error handling.
 const fetchWithBackoff = async (
   url: string,
-  init: FetchInit
+  init: FetchInit,
+  timeoutMs?: number,
 ): Promise<Response> => {
   let lastError: unknown;
+  const maxRetries = timeoutMs ? 0 : RETRY_MAX_RETRIES;
 
-  for (let attempt = 0; attempt <= RETRY_MAX_RETRIES; attempt++) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = timeoutMs ? new AbortController() : undefined;
+    const timer = timeoutMs ? setTimeout(() => controller?.abort(), timeoutMs) : undefined;
     try {
-      const response = await fetch(url, init);
-      if (response.ok || attempt === RETRY_MAX_RETRIES) {
+      const response = await fetch(url, { ...init, ...(controller ? { signal: controller.signal } : {}) });
+      if (response.ok || attempt === maxRetries) {
         return response;
       }
 
@@ -326,11 +331,14 @@ const fetchWithBackoff = async (
       await sleep(computeBackoffDelay(attempt, retryAfterMs));
     } catch (error) {
       lastError = error;
-      if (attempt === RETRY_MAX_RETRIES) throw error;
+      if (controller?.signal.aborted) throw new Error(`LLM request exceeded its ${timeoutMs}ms deadline.`);
+      if (attempt === maxRetries) throw error;
       console.warn(
         `LLM request retry ${attempt + 1}/${RETRY_MAX_RETRIES} after network error`
       );
       await sleep(computeBackoffDelay(attempt));
+    } finally {
+      if (timer) clearTimeout(timer);
     }
   }
 
@@ -356,6 +364,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     reasoning,
     maxTokens,
     max_tokens,
+    timeoutMs,
   } = params;
 
   const payload: Record<string, unknown> = {
@@ -408,7 +417,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
       authorization: `Bearer ${ENV.forgeApiKey}`,
     },
     body: JSON.stringify(payload),
-  });
+  }, timeoutMs);
 
   if (!response.ok) {
     const errorText = await response.text();

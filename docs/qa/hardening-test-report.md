@@ -7,7 +7,7 @@ This report records the rigorous test and debugging cycle performed after the au
 | Area | Verification | Result |
 | --- | --- | --- |
 | Static analysis | TypeScript check after each server and dependency change | Passed |
-| Unit and route tests | Retrieval, logout, scheduler-authentication, missing-key, traversal-key, and database-backed tenant-isolation suites | **12 tests passed** across 4 suites |
+| Unit and route tests | Retrieval, logout, deadline-aware LLM invocation, scheduler-authentication, missing-key, traversal-key, and database-backed tenant-isolation suites | **14 tests passed** across 5 suites |
 | Production build | Vite client and bundled Express server builds | Passed |
 | Dependency audit | `pnpm audit --prod --audit-level=high` | **No known vulnerabilities** |
 | Anonymous workspace request | `nexus.workspace` request without a session | Rejected with **401** |
@@ -18,7 +18,7 @@ This report records the rigorous test and debugging cycle performed after the au
 
 ## Final validation rerun
 
-Following the completed authenticated access-control lifecycle test, database-backed isolation proof, and non-sensitive golden-evaluation work, the final validation command sequence completed successfully: `pnpm check`, `pnpm test`, `pnpm build`, and `pnpm audit --prod`. The test run passed all **12 tests across 4 suites**. The production client and server bundle built successfully, and the production dependency audit again reported **No known vulnerabilities**. Vite emitted only its advisory large-chunk notice for the production JavaScript bundle; it did not fail the build.
+Following the completed authenticated access-control lifecycle test, database-backed isolation proof, and non-sensitive golden-evaluation work, the final validation command sequence completed successfully: `pnpm check`, `pnpm test`, `pnpm build`, and `pnpm audit --prod`. The test run passed all **14 tests across 5 suites**. The production client and server bundle built successfully, and the production dependency audit again reported **No known vulnerabilities**. Vite emitted only its advisory large-chunk notice for the production JavaScript bundle; it did not fail the build.
 
 ## Defects found and resolved
 
@@ -32,6 +32,7 @@ Following the completed authenticated access-control lifecycle test, database-ba
 | Unknown API routes rendered the SPA | Added API-specific 404 middleware before the client fallback. | Unknown API routes receive 404. |
 | Chart update type mismatch | Updated the reusable chart helper for Recharts v3’s public type contract. | Type check and production build pass. |
 | Unrelated hash-vector candidates weakened abstention on the non-sensitive golden fixture | Raised the dense-only candidate admission floor; sparse matches remain eligible and unanswerable cases are now rejected by the evidence gate. | Two deliberately unanswerable cases achieved correct abstention; the retrieval suite includes a dense-only collision regression test. |
+| Slow answer generation exceeded the query latency target | Added a 2,400 ms request deadline with no retry and a citation-complete extractive fallback. | Deadline regression test proves one abort with no retry; final fixture p95 query latency is 3,496 ms. |
 
 ## Remaining release gates
 

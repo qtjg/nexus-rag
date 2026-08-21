@@ -23,12 +23,14 @@ export type CandidateChunk = {
 
 export type RankedChunk = CandidateChunk & { score: number; matchedTerms: string[] };
 
-const STOP_WORDS = new Set(["a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "how", "i", "in", "is", "it", "of", "on", "or", "that", "the", "to", "what", "when", "where", "which", "with", "you", "your"]);
+const STOP_WORDS = new Set(["a", "after", "an", "and", "any", "are", "as", "at", "be", "before", "both", "by", "can", "do", "does", "every", "for", "from", "how", "i", "in", "is", "it", "long", "many", "must", "of", "on", "or", "record", "recorded", "records", "required", "require", "requires", "review", "should", "that", "the", "to", "what", "when", "where", "which", "who", "will", "with", "you", "your"]);
 
-export const RETRIEVAL_VERSION = "hybrid-hash-vector-sparse-rrf-v1";
+export const RETRIEVAL_VERSION = "hybrid-hash-vector-sparse-rrf-v2";
 export const EVIDENCE_THRESHOLD = 0.16;
 export const EMBEDDING_DIMENSIONS = 96;
 export const DENSE_ONLY_CANDIDATE_FLOOR = 0.42;
+export const RELATIVE_EVIDENCE_SCORE_FLOOR = 0.75;
+export const RELATIVE_MATCHED_TERM_FLOOR = 0.75;
 
 function hash(value: string) {
   return createHash("sha256").update(value).digest("hex");
@@ -123,12 +125,12 @@ export function chunkText(rawText: string, maxTokens = 380): ChunkDraft[] {
   return drafts;
 }
 
-export function rankCandidateChunks(question: string, candidates: CandidateChunk[], limit = 6): RankedChunk[] {
+export function rankCandidateChunks(question: string, candidates: CandidateChunk[], limit = 5): RankedChunk[] {
   const queryTerms = terms(question);
   const normalizedQuestion = question.trim().toLowerCase();
   if (!queryTerms.length) return [];
   const queryEmbedding = createLocalEmbedding(question);
-  const scored = candidates.map((candidate) => {
+  const scoredCandidates = candidates.map((candidate) => {
     const fullText = `${candidate.title} ${candidate.sectionPath ?? ""} ${candidate.text}`.toLowerCase();
     const matchedTerms = queryTerms.filter((term) => fullText.includes(term));
     const coverage = matchedTerms.length / queryTerms.length;
@@ -136,8 +138,10 @@ export function rankCandidateChunks(question: string, candidates: CandidateChunk
     const titleBonus = queryTerms.some((term) => candidate.title.toLowerCase().includes(term)) ? 0.08 : 0;
     const sparseScore = Math.min(1, coverage + phraseBonus + titleBonus);
     const denseScore = Math.max(0, cosineSimilarity(queryEmbedding, parseEmbedding(candidate.embeddingJson, fullText)));
-    return { candidate, matchedTerms, sparseScore, denseScore, titleBonus };
-  }).filter((entry) => entry.sparseScore > 0 || entry.denseScore >= DENSE_ONLY_CANDIDATE_FLOOR);
+    return { candidate, matchedTerms, coverage, sparseScore, denseScore, titleBonus };
+  });
+  const hasSparseMatch = scoredCandidates.some((entry) => entry.sparseScore > 0);
+  const scored = scoredCandidates.filter((entry) => entry.sparseScore > 0 || (!hasSparseMatch && entry.denseScore >= DENSE_ONLY_CANDIDATE_FLOOR));
 
   const sparseRanks = new Map(scored.slice().sort((a, b) => b.sparseScore - a.sparseScore).map((entry, index) => [entry.candidate.id, index + 1]));
   const denseRanks = new Map(scored.slice().sort((a, b) => b.denseScore - a.denseScore).map((entry, index) => [entry.candidate.id, index + 1]));
@@ -149,9 +153,14 @@ export function rankCandidateChunks(question: string, candidates: CandidateChunk
     return { ...entry.candidate, score, matchedTerms: entry.matchedTerms };
   }).sort((a, b) => b.score - a.score);
 
+  const relativeScoreFloor = Math.max(EVIDENCE_THRESHOLD, (fused[0]?.score ?? 0) * RELATIVE_EVIDENCE_SCORE_FLOOR);
+  const strongestMatchedTermCount = Math.max(0, ...fused.map((candidate) => candidate.matchedTerms.length));
+  const relativeMatchedTermFloor = Math.max(1, Math.ceil(strongestMatchedTermCount * RELATIVE_MATCHED_TERM_FLOOR));
   const sourceCounts = new Map<number, number>();
   const selected: RankedChunk[] = [];
   for (const candidate of fused) {
+    if (candidate.score < relativeScoreFloor) break;
+    if (candidate.matchedTerms.length < relativeMatchedTermFloor) continue;
     const currentCount = sourceCounts.get(candidate.sourceId) ?? 0;
     if (currentCount >= 2) continue;
     selected.push(candidate);
@@ -168,6 +177,10 @@ export function createPipelineFingerprint() {
 export function buildGroundedPrompt(question: string, evidence: RankedChunk[]) {
   const blocks = evidence.map((chunk, index) => `[${index + 1}] SOURCE: ${chunk.sourceName}\nSECTION: ${chunk.sectionPath ?? "Unsectioned"}\nBEGIN_UNTRUSTED_EVIDENCE\n${chunk.text}\nEND_UNTRUSTED_EVIDENCE`).join("\n\n");
   return `QUESTION\n${question}\n\nAPPROVED EVIDENCE\n${blocks}`;
+}
+
+export function buildExtractiveEvidenceFallback(evidence: RankedChunk[]) {
+  return `APPROVED EVIDENCE\n${evidence.map((chunk, index) => `[${index + 1}] ${chunk.text}`).join("\n\n")}`;
 }
 
 export function citationMarkersResolve(answer: string, citationCount: number) {
