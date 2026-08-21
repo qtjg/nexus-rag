@@ -15,6 +15,10 @@ The organization owner authorized **Phase 4 scope planning**, not automatic conn
 | **4C — Usage analytics** | Operational visibility without exposing knowledge content | Organization-scoped aggregate query/ingestion/latency/feedback metrics, retention window, export controls, role-gated dashboards | Raw prompt/content analytics by default, cross-organization analytics, third-party tracking pixels | Metrics owner, retention policy, access policy, and privacy review |
 | **4D — API access** | Safe programmatic retrieval and ingestion | Versioned server API, service identities, scoped keys, quotas, idempotency, audit records, OpenAPI contract, key rotation/revocation | Browser-held secret keys, unscoped organization access, arbitrary SQL/query execution, write-by-default permissions | API owner, client threat model, quota policy, incident owner, and security-review sign-off |
 
+## Guarded implementation status
+
+All four increments are now implemented in **guarded control-plane form** as authorized by the organization owner. The API is intentionally query-read-only; connector drafts intentionally create blocked provenance rather than any provider call; and SSO enforcement rejects activation until the named external prerequisites are approved. Detailed verification and activation evidence is recorded in `docs/qa/phase-4-guarded-verification.md`.
+
 ## Recommended sequence
 
 1. Complete representative-corpus evaluation and the external evidence register; close material findings before enabling expansion work.

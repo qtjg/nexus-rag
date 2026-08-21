@@ -122,6 +122,99 @@ export const organizationPolicies = mysqlTable(
   (table) => [uniqueIndex("organization_policies_org_unique").on(table.orgId)],
 );
 
+export const organizationSsoConfigurations = mysqlTable(
+  "organization_sso_configurations",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    orgId: int("orgId").notNull(),
+    providerType: mysqlEnum("providerType", ["workos", "oidc", "saml"]).notNull().default("workos"),
+    status: mysqlEnum("status", ["draft", "ready", "active", "disabled"]).notNull().default("draft"),
+    connectionReference: varchar("connectionReference", { length: 160 }),
+    verifiedDomainsJson: varchar("verifiedDomainsJson", { length: 2_000 }).notNull().default("[]"),
+    roleMappingJson: varchar("roleMappingJson", { length: 6_000 }).notNull().default("{}"),
+    enforceSso: boolean("enforceSso").notNull().default(false),
+    configuredByUserId: int("configuredByUserId"),
+    activatedAt: timestamp("activatedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => [uniqueIndex("organization_sso_configurations_org_unique").on(table.orgId)],
+);
+
+export const organizationApiKeys = mysqlTable(
+  "organization_api_keys",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    orgId: int("orgId").notNull(),
+    createdByUserId: int("createdByUserId").notNull(),
+    label: varchar("label", { length: 120 }).notNull(),
+    keyPrefix: varchar("keyPrefix", { length: 24 }).notNull(),
+    secretHash: varchar("secretHash", { length: 64 }).notNull(),
+    scopesJson: varchar("scopesJson", { length: 600 }).notNull().default('["query:read"]'),
+    rateLimitPerMinute: int("rateLimitPerMinute").notNull().default(12),
+    expiresAt: timestamp("expiresAt"),
+    lastUsedAt: timestamp("lastUsedAt"),
+    revokedAt: timestamp("revokedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("organization_api_keys_secret_hash_unique").on(table.secretHash),
+    uniqueIndex("organization_api_keys_org_prefix_unique").on(table.orgId, table.keyPrefix),
+    index("organization_api_keys_org_created_idx").on(table.orgId, table.createdAt),
+  ],
+);
+
+export const apiKeyUsage = mysqlTable(
+  "api_key_usage",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    orgId: int("orgId").notNull(),
+    apiKeyId: int("apiKeyId").notNull(),
+    statusCode: int("statusCode").notNull(),
+    latencyMs: int("latencyMs").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [index("api_key_usage_key_created_idx").on(table.apiKeyId, table.createdAt), index("api_key_usage_org_created_idx").on(table.orgId, table.createdAt)],
+);
+
+export const connectorConfigurations = mysqlTable(
+  "connector_configurations",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    orgId: int("orgId").notNull(),
+    collectionId: int("collectionId").notNull(),
+    createdByUserId: int("createdByUserId").notNull(),
+    providerType: mysqlEnum("providerType", ["notion", "google_drive", "confluence", "sharepoint", "custom_api"]).notNull(),
+    status: mysqlEnum("status", ["draft", "ready", "paused", "disconnected"]).notNull().default("draft"),
+    syncMode: mysqlEnum("syncMode", ["manual", "incremental"]).notNull().default("manual"),
+    connectionReference: varchar("connectionReference", { length: 160 }),
+    externalScope: varchar("externalScope", { length: 500 }),
+    lastSyncedAt: timestamp("lastSyncedAt"),
+    disconnectedAt: timestamp("disconnectedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => [index("connector_configurations_org_created_idx").on(table.orgId, table.createdAt), index("connector_configurations_org_collection_idx").on(table.orgId, table.collectionId)],
+);
+
+export const connectorSyncRuns = mysqlTable(
+  "connector_sync_runs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    orgId: int("orgId").notNull(),
+    connectorConfigurationId: int("connectorConfigurationId").notNull(),
+    status: mysqlEnum("status", ["queued", "running", "succeeded", "failed", "blocked"]).notNull().default("blocked"),
+    sourcesCreated: int("sourcesCreated").notNull().default(0),
+    sourcesUpdated: int("sourcesUpdated").notNull().default(0),
+    errorCode: varchar("errorCode", { length: 64 }),
+    errorMessage: varchar("errorMessage", { length: 500 }),
+    startedAt: timestamp("startedAt"),
+    completedAt: timestamp("completedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [index("connector_sync_runs_org_connector_idx").on(table.orgId, table.connectorConfigurationId, table.createdAt)],
+);
+
 export const auditEvents = mysqlTable(
   "audit_events",
   {
@@ -150,6 +243,8 @@ export const sources = mysqlTable(
     type: mysqlEnum("type", ["text", "file", "url", "code"]).notNull().default("text"),
     name: varchar("name", { length: 255 }).notNull(),
     sourceUrl: varchar("sourceUrl", { length: 2048 }),
+    connectorConfigurationId: int("connectorConfigurationId"),
+    externalObjectId: varchar("externalObjectId", { length: 255 }),
     storageKey: varchar("storageKey", { length: 512 }),
     contentHash: varchar("contentHash", { length: 64 }).notNull(),
     extractedText: mediumtext("extractedText"),

@@ -1,0 +1,2 @@
+ALTER TABLE `organization_sso_configurations` MODIFY COLUMN `verifiedDomainsJson` varchar(2000) NOT NULL DEFAULT '[]';--> statement-breakpoint
+ALTER TABLE `organization_sso_configurations` MODIFY COLUMN `roleMappingJson` varchar(6000) NOT NULL DEFAULT '{}';

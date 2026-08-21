@@ -35,7 +35,8 @@
 - [x] Build and run a PRD-shaped non-sensitive golden evaluation fixture, reporting precision@5, recall@10, faithfulness, and unanswerable-case abstention accuracy
 - [x] Add and run a two-organization database-backed retrieval isolation test that proves zero cross-tenant results through the actual query path
 - [ ] Obtain the qualified human security-review sign-off and realistic-load-test results required by the PRD before sensitive multi-tenant data is onboarded
-- [ ] Defer Phase 4 SSO, third-party connectors, usage analytics, and API access until explicit post-review authorization
+- [x] Receive explicit owner authorization to implement guarded Phase 4 increments before external-review completion
+- [ ] Complete Phase 4 security and external-review approval before activating any increment for sensitive production data
 - [x] Add a non-sensitive, domain-neutral corpus fixture with documented golden questions, expected sources, and adversarial unanswerable cases
 - [ ] Build and run the PRD-required golden evaluation against user-approved representative documents before claiming the Phase 1 quality gate passes
 - [x] Improve retrieval precision, answer faithfulness, p95 latency, and faithfulness-judge reliability against the user-authorized non-sensitive PRD corpus
@@ -47,3 +48,12 @@
 - [x] Create the representative-corpus intake and execution template for owner-provided non-sensitive documents and adjudicated golden answers
 - [x] Create external-review evidence registers for the backup/restore rehearsal, realistic load/failure exercise, and qualified human security sign-off
 - [x] Define the approved Phase 4 expansion scope, dependencies, non-goals, and decision gates for SSO, connectors, usage analytics, and API access
+- [x] Implement 4A Enterprise SSO readiness, verified-domain policy, role mapping, and organization identity controls without activating an external IdP
+- [x] Implement 4D scoped service API keys, organization-bound permissions, quotas, rotation/revocation, and audit controls
+- [x] Add explicit API-key rotation with one-time replacement reveal and audit evidence, invalidating the prior key
+- [x] Add endpoint-level /api/v1/query coverage for bearer authentication, scope/quota enforcement, usage persistence, and revoked-key rejection
+- [x] Add endpoint-level /api/v1/query insufficient-scope coverage proving a key without query:read receives HTTP 403
+- [x] Implement 4B governed connector configuration, provenance, collection scope, sync controls, and disconnect/delete lifecycle without connecting an unapproved provider
+- [x] Add manager-only connector deletion for draft or disconnected configurations, retaining a meaningful audit record and cleaning blocked sync-run metadata
+- [x] Add integration coverage for connector deletion and provenance cleanup behavior
+- [x] Implement 4C privacy-preserving organization usage analytics without raw prompt or source-content retention

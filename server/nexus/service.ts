@@ -1,18 +1,23 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, desc, eq, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import mammoth from "mammoth";
 import { PDFParse } from "pdf-parse";
 import {
   auditEvents,
+  apiKeyUsage,
   chunks,
   collectionAccess,
   collections,
+  connectorConfigurations,
+  connectorSyncRuns,
   feedback,
   ingestionJobs,
   organizationInvitations,
+  organizationApiKeys,
   organizationMemberships,
   organizationPolicies,
+  organizationSsoConfigurations,
   organizations,
   queries,
   queryCitations,
@@ -51,6 +56,34 @@ async function getOrganizationPolicy(db: NexusDb, orgId: number) {
   if (existing) return existing;
   await db.insert(organizationPolicies).values({ orgId });
   return (await db.select().from(organizationPolicies).where(eq(organizationPolicies.orgId, orgId)).limit(1))[0]!;
+}
+
+const ssoProviderTypes = ["workos", "oidc", "saml"] as const;
+const ssoRoleValues = ["admin", "member", "viewer"] as const;
+type SsoProviderType = (typeof ssoProviderTypes)[number];
+type SsoRole = (typeof ssoRoleValues)[number];
+
+function normalizeVerifiedDomains(domains: string[]) {
+  const normalized = Array.from(new Set(domains.map((domain) => domain.trim().toLowerCase()).filter(Boolean)));
+  if (normalized.length > 20 || normalized.some((domain) => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(domain))) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "SSO verified domains must be valid domain names (without @) and limited to 20 entries." });
+  }
+  return normalized;
+}
+
+function normalizeRoleMapping(mapping: Record<string, SsoRole>) {
+  const entries = Object.entries(mapping).map(([group, role]) => [group.trim(), role] as const).filter(([group]) => Boolean(group));
+  if (entries.length > 40 || entries.some(([group, role]) => group.length > 120 || !ssoRoleValues.includes(role))) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "SSO group mappings must target an approved role and use concise group names." });
+  }
+  return Object.fromEntries(entries);
+}
+
+async function getSsoConfiguration(db: NexusDb, orgId: number) {
+  const existing = (await db.select().from(organizationSsoConfigurations).where(eq(organizationSsoConfigurations.orgId, orgId)).limit(1))[0];
+  if (existing) return existing;
+  await db.insert(organizationSsoConfigurations).values({ orgId });
+  return (await db.select().from(organizationSsoConfigurations).where(eq(organizationSsoConfigurations.orgId, orgId)).limit(1))[0]!;
 }
 
 type CurrentUser = { id: number; name: string | null; email: string | null };
@@ -120,6 +153,7 @@ export async function ensureWorkspace(user: CurrentUser) {
   await db.insert(organizationMemberships).values({ orgId, userId: user.id, role: "owner" });
   await db.insert(collections).values({ orgId, name: "General knowledge", description: "Default collection for approved workspace evidence." });
   await db.insert(organizationPolicies).values({ orgId });
+  await db.insert(organizationSsoConfigurations).values({ orgId });
   await recordAudit(db, { orgId, actorUserId: user.id, action: "workspace.created", targetType: "organization", targetId: orgId, summary: "Created organization workspace" });
   const organization = (await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1))[0]!;
   const membership = (await db.select().from(organizationMemberships).where(and(eq(organizationMemberships.orgId, orgId), eq(organizationMemberships.userId, user.id))).limit(1))[0]!;
@@ -142,6 +176,9 @@ export async function getWorkspace(user: CurrentUser) {
   const scope = await getAccessScope(user.id, organization.id);
   const db = await requireDb();
   const policy = await getOrganizationPolicy(db, scope.orgId);
+  const ssoConfiguration = canManageOrganization(scope.role) ? await getSsoConfiguration(db, scope.orgId) : null;
+  const connectorConfigs = canManageOrganization(scope.role) ? await db.select().from(connectorConfigurations).where(eq(connectorConfigurations.orgId, scope.orgId)).orderBy(desc(connectorConfigurations.createdAt)) : [];
+  const connectorRuns = canManageOrganization(scope.role) ? await db.select().from(connectorSyncRuns).where(eq(connectorSyncRuns.orgId, scope.orgId)).orderBy(desc(connectorSyncRuns.createdAt)).limit(20) : [];
   const accessibleCollections = scope.collectionIds.length
     ? await db.select().from(collections).where(and(eq(collections.orgId, scope.orgId), inArray(collections.id, scope.collectionIds))).orderBy(asc(collections.name))
     : [];
@@ -182,7 +219,7 @@ export async function getWorkspace(user: CurrentUser) {
     { id: "ingestion", label: "Ingestion reliability", status: jobs.some((job) => job.status === "dead_letter") ? "block" : "pass", threshold: "No unresolved dead-letter jobs" },
     { id: "scope", label: "Access policy", status: "pass", threshold: "Organization and collection filtering active" },
   ] as const;
-  return { organization, membership, policy, collections: accessibleCollections, sources: accessibleSources, members, invitations, memberGrants, jobs, recentAuditEvents, metrics, releaseGates };
+  return { organization, membership, policy, ssoConfiguration, connectorConfigs, connectorRuns, collections: accessibleCollections, sources: accessibleSources, members, invitations, memberGrants, jobs, recentAuditEvents, metrics, releaseGates };
 }
 
 export async function createCollection(userId: number, orgId: number, name: string, description?: string) {
@@ -210,6 +247,192 @@ export async function updateOrganizationPolicy(input: { userId: number; orgId: n
   await db.update(organizationPolicies).set(update).where(eq(organizationPolicies.orgId, input.orgId));
   await recordAudit(db, { orgId: input.orgId, actorUserId: input.userId, action: "policy.updated", targetType: "organization_policy", targetId: input.orgId, summary: "Updated organization policy", metadata: update });
   return getOrganizationPolicy(db, input.orgId);
+}
+
+export async function configureEnterpriseSso(input: { userId: number; orgId: number; providerType: SsoProviderType; connectionReference?: string | null; verifiedDomains: string[]; roleMapping: Record<string, SsoRole>; enforceSso: boolean }) {
+  const scope = await getAccessScope(input.userId, input.orgId);
+  assertOrganizationManager(scope);
+  const db = await requireDb();
+  const verifiedDomains = normalizeVerifiedDomains(input.verifiedDomains);
+  const roleMapping = normalizeRoleMapping(input.roleMapping);
+  const connectionReference = input.connectionReference?.trim() || null;
+  if (input.enforceSso) {
+    throw new TRPCError({ code: "PRECONDITION_FAILED", message: "SSO enforcement requires an active provider connection and qualified security-review approval. This workspace currently supports draft readiness only." });
+  }
+  const status = connectionReference && verifiedDomains.length ? "ready" : "draft";
+  await getSsoConfiguration(db, input.orgId);
+  await db.update(organizationSsoConfigurations).set({
+    providerType: input.providerType,
+    status,
+    connectionReference,
+    verifiedDomainsJson: JSON.stringify(verifiedDomains),
+    roleMappingJson: JSON.stringify(roleMapping),
+    enforceSso: false,
+    configuredByUserId: input.userId,
+  }).where(eq(organizationSsoConfigurations.orgId, input.orgId));
+  await recordAudit(db, { orgId: input.orgId, actorUserId: input.userId, action: "sso.configuration_updated", targetType: "organization_sso_configuration", targetId: input.orgId, summary: `Updated ${input.providerType.toUpperCase()} SSO readiness configuration`, metadata: { providerType: input.providerType, status, verifiedDomains, roleMapping } });
+  return getSsoConfiguration(db, input.orgId);
+}
+
+const apiScopes = ["query:read"] as const;
+type ApiScope = (typeof apiScopes)[number];
+
+function parseApiScopes(value: string) {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? parsed.filter((scope): scope is ApiScope => typeof scope === "string" && apiScopes.includes(scope as ApiScope)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function hashServiceApiKey(rawKey: string) {
+  return createHash("sha256").update(rawKey).digest("hex");
+}
+
+export async function listServiceApiKeys(userId: number, orgId: number) {
+  const scope = await getAccessScope(userId, orgId);
+  assertOrganizationManager(scope);
+  const db = await requireDb();
+  const keys = await db.select({ id: organizationApiKeys.id, label: organizationApiKeys.label, keyPrefix: organizationApiKeys.keyPrefix, scopesJson: organizationApiKeys.scopesJson, rateLimitPerMinute: organizationApiKeys.rateLimitPerMinute, expiresAt: organizationApiKeys.expiresAt, lastUsedAt: organizationApiKeys.lastUsedAt, revokedAt: organizationApiKeys.revokedAt, createdAt: organizationApiKeys.createdAt }).from(organizationApiKeys).where(eq(organizationApiKeys.orgId, orgId)).orderBy(desc(organizationApiKeys.createdAt));
+  return keys.map((key) => ({ ...key, scopes: parseApiScopes(key.scopesJson) }));
+}
+
+export async function createServiceApiKey(input: { userId: number; orgId: number; label: string; rateLimitPerMinute: number; expiresAt?: Date | null }) {
+  const scope = await getAccessScope(input.userId, input.orgId);
+  assertOrganizationManager(scope);
+  const db = await requireDb();
+  const label = input.label.trim();
+  if (label.length < 2 || label.length > 120) throw new TRPCError({ code: "BAD_REQUEST", message: "API key labels must be between 2 and 120 characters." });
+  if (!Number.isInteger(input.rateLimitPerMinute) || input.rateLimitPerMinute < 1 || input.rateLimitPerMinute > 120) throw new TRPCError({ code: "BAD_REQUEST", message: "API key rate limits must be between 1 and 120 requests per minute." });
+  if (input.expiresAt && input.expiresAt <= new Date()) throw new TRPCError({ code: "BAD_REQUEST", message: "API key expiry must be in the future." });
+  const rawKey = `nxk_${randomBytes(30).toString("base64url")}`;
+  const keyPrefix = rawKey.slice(0, 16);
+  const result = await db.insert(organizationApiKeys).values({ orgId: input.orgId, createdByUserId: input.userId, label, keyPrefix, secretHash: hashServiceApiKey(rawKey), scopesJson: JSON.stringify(apiScopes), rateLimitPerMinute: input.rateLimitPerMinute, expiresAt: input.expiresAt ?? null });
+  const id = Number(result[0].insertId);
+  await recordAudit(db, { orgId: input.orgId, actorUserId: input.userId, action: "api_key.created", targetType: "organization_api_key", targetId: id, summary: `Created read-only service API key ${label}`, metadata: { keyPrefix, scopes: apiScopes, rateLimitPerMinute: input.rateLimitPerMinute, expiresAt: input.expiresAt ?? null } });
+  return { id, label, keyPrefix, key: rawKey, scopes: apiScopes, rateLimitPerMinute: input.rateLimitPerMinute, expiresAt: input.expiresAt ?? null };
+}
+
+export async function revokeServiceApiKey(input: { userId: number; orgId: number; apiKeyId: number }) {
+  const scope = await getAccessScope(input.userId, input.orgId);
+  assertOrganizationManager(scope);
+  const db = await requireDb();
+  const key = (await db.select().from(organizationApiKeys).where(and(eq(organizationApiKeys.id, input.apiKeyId), eq(organizationApiKeys.orgId, input.orgId))).limit(1))[0];
+  if (!key) throw new TRPCError({ code: "NOT_FOUND", message: "The requested API key is not in this organization." });
+  if (!key.revokedAt) await db.update(organizationApiKeys).set({ revokedAt: new Date() }).where(eq(organizationApiKeys.id, key.id));
+  await recordAudit(db, { orgId: input.orgId, actorUserId: input.userId, action: "api_key.revoked", targetType: "organization_api_key", targetId: key.id, summary: `Revoked service API key ${key.label}`, metadata: { keyPrefix: key.keyPrefix } });
+  return { success: true };
+}
+
+export async function rotateServiceApiKey(input: { userId: number; orgId: number; apiKeyId: number }) {
+  const scope = await getAccessScope(input.userId, input.orgId);
+  assertOrganizationManager(scope);
+  const db = await requireDb();
+  const previous = (await db.select().from(organizationApiKeys).where(and(eq(organizationApiKeys.id, input.apiKeyId), eq(organizationApiKeys.orgId, input.orgId))).limit(1))[0];
+  if (!previous) throw new TRPCError({ code: "NOT_FOUND", message: "The requested API key is not in this organization." });
+  if (previous.revokedAt) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A revoked API key cannot be rotated." });
+  const rawKey = `nxk_${randomBytes(30).toString("base64url")}`;
+  const keyPrefix = rawKey.slice(0, 16);
+  const result = await db.insert(organizationApiKeys).values({ orgId: input.orgId, createdByUserId: input.userId, label: previous.label, keyPrefix, secretHash: hashServiceApiKey(rawKey), scopesJson: previous.scopesJson, rateLimitPerMinute: previous.rateLimitPerMinute, expiresAt: previous.expiresAt });
+  const id = Number(result[0].insertId);
+  await db.update(organizationApiKeys).set({ revokedAt: new Date() }).where(eq(organizationApiKeys.id, previous.id));
+  await recordAudit(db, { orgId: input.orgId, actorUserId: input.userId, action: "api_key.rotated", targetType: "organization_api_key", targetId: id, summary: `Rotated service API key ${previous.label}`, metadata: { previousKeyId: previous.id, previousKeyPrefix: previous.keyPrefix, replacementKeyPrefix: keyPrefix, scopes: parseApiScopes(previous.scopesJson) } });
+  return { id, label: previous.label, keyPrefix, key: rawKey, scopes: parseApiScopes(previous.scopesJson), rateLimitPerMinute: previous.rateLimitPerMinute, expiresAt: previous.expiresAt };
+}
+
+export async function authenticateServiceApiKey(rawKey: string) {
+  if (!/^nxk_[A-Za-z0-9_-]{30,}$/.test(rawKey)) throw new TRPCError({ code: "UNAUTHORIZED", message: "A valid bearer API key is required." });
+  const db = await requireDb();
+  const key = (await db.select().from(organizationApiKeys).where(eq(organizationApiKeys.secretHash, hashServiceApiKey(rawKey))).limit(1))[0];
+  if (!key || key.revokedAt || (key.expiresAt && key.expiresAt <= new Date())) throw new TRPCError({ code: "UNAUTHORIZED", message: "This API key is inactive or expired." });
+  const minuteAgo = new Date(Date.now() - 60_000);
+  const usage = await db.select({ count: sql<number>`count(*)` }).from(apiKeyUsage).where(and(eq(apiKeyUsage.apiKeyId, key.id), gte(apiKeyUsage.createdAt, minuteAgo)));
+  if (Number(usage[0]?.count ?? 0) >= key.rateLimitPerMinute) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "This API key reached its protected request budget. Retry shortly." });
+  await db.update(organizationApiKeys).set({ lastUsedAt: new Date() }).where(eq(organizationApiKeys.id, key.id));
+  return { ...key, scopes: parseApiScopes(key.scopesJson) };
+}
+
+export async function recordServiceApiUsage(input: { orgId: number; apiKeyId: number; statusCode: number; latencyMs: number }) {
+  const db = await requireDb();
+  await db.insert(apiKeyUsage).values(input);
+}
+
+export async function getOrganizationAnalytics(input: { userId: number; orgId: number; days: number }) {
+  const scope = await getAccessScope(input.userId, input.orgId);
+  assertOrganizationManager(scope);
+  const db = await requireDb();
+  const days = Math.max(1, Math.min(90, input.days));
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1_000);
+  const queryEvents = await db.select({ createdAt: queries.createdAt, sufficientContext: queries.sufficientContext, latencyMs: queries.latencyMs }).from(queries).where(and(eq(queries.orgId, input.orgId), gte(queries.createdAt, since))).orderBy(asc(queries.createdAt));
+  const dailyQueryMap = new Map<string, { queryCount: number; groundedCount: number; latencyTotal: number }>();
+  for (const event of queryEvents) {
+    const day = event.createdAt.toISOString().slice(0, 10);
+    const current = dailyQueryMap.get(day) ?? { queryCount: 0, groundedCount: 0, latencyTotal: 0 };
+    current.queryCount += 1;
+    current.groundedCount += event.sufficientContext ? 1 : 0;
+    current.latencyTotal += event.latencyMs;
+    dailyQueryMap.set(day, current);
+  }
+  const queryRows = Array.from(dailyQueryMap.entries()).map(([day, row]) => ({ day, queryCount: row.queryCount, groundedCount: row.groundedCount, averageLatencyMs: Math.round(row.latencyTotal / row.queryCount) }));
+  const feedbackRows = await db.select({ rating: feedback.rating, count: sql<number>`count(*)` }).from(feedback).where(and(eq(feedback.orgId, input.orgId), gte(feedback.createdAt, since))).groupBy(feedback.rating);
+  const ingestionRows = await db.select({ status: ingestionJobs.status, count: sql<number>`count(*)` }).from(ingestionJobs).where(and(eq(ingestionJobs.orgId, input.orgId), gte(ingestionJobs.createdAt, since))).groupBy(ingestionJobs.status);
+  const apiRows = await db.select({ statusCode: apiKeyUsage.statusCode, count: sql<number>`count(*)`, averageLatencyMs: sql<number>`round(avg(${apiKeyUsage.latencyMs}))` }).from(apiKeyUsage).where(and(eq(apiKeyUsage.orgId, input.orgId), gte(apiKeyUsage.createdAt, since))).groupBy(apiKeyUsage.statusCode);
+  const queryCount = queryRows.reduce((sum, row) => sum + Number(row.queryCount), 0);
+  const groundedCount = queryRows.reduce((sum, row) => sum + Number(row.groundedCount ?? 0), 0);
+  return {
+    windowDays: days,
+    querySummary: { queryCount, groundedRate: queryCount ? Math.round((groundedCount / queryCount) * 100) : null, averageLatencyMs: queryCount ? Math.round(queryRows.reduce((sum, row) => sum + Number(row.averageLatencyMs ?? 0) * Number(row.queryCount), 0) / queryCount) : null },
+    dailyQueries: queryRows.map((row) => ({ day: row.day, queryCount: Number(row.queryCount), groundedCount: Number(row.groundedCount ?? 0), averageLatencyMs: Number(row.averageLatencyMs ?? 0) })),
+    feedback: Object.fromEntries(feedbackRows.map((row) => [row.rating, Number(row.count)])),
+    ingestion: Object.fromEntries(ingestionRows.map((row) => [row.status, Number(row.count)])),
+    api: apiRows.map((row) => ({ statusCode: row.statusCode, count: Number(row.count), averageLatencyMs: Number(row.averageLatencyMs ?? 0) })),
+  };
+}
+
+const connectorProviderValues = ["notion", "google_drive", "confluence", "sharepoint", "custom_api"] as const;
+type ConnectorProvider = (typeof connectorProviderValues)[number];
+
+export async function createConnectorConfiguration(input: { userId: number; orgId: number; collectionId: number; providerType: ConnectorProvider; syncMode: "manual" | "incremental"; connectionReference?: string | null; externalScope?: string | null }) {
+  const scope = await getAccessScope(input.userId, input.orgId);
+  assertOrganizationManager(scope);
+  const db = await requireDb();
+  const collection = (await db.select().from(collections).where(and(eq(collections.id, input.collectionId), eq(collections.orgId, input.orgId))).limit(1))[0];
+  if (!collection) throw new TRPCError({ code: "NOT_FOUND", message: "Connector collection is not in this organization." });
+  const connectionReference = input.connectionReference?.trim() || null;
+  const externalScope = input.externalScope?.trim() || null;
+  if ((connectionReference?.length ?? 0) > 160 || (externalScope?.length ?? 0) > 500) throw new TRPCError({ code: "BAD_REQUEST", message: "Connector reference or external scope exceeds its permitted length." });
+  const result = await db.insert(connectorConfigurations).values({ orgId: input.orgId, collectionId: input.collectionId, createdByUserId: input.userId, providerType: input.providerType, syncMode: input.syncMode, connectionReference, externalScope, status: "draft" });
+  const id = Number(result[0].insertId);
+  await db.insert(connectorSyncRuns).values({ orgId: input.orgId, connectorConfigurationId: id, status: "blocked", errorCode: "EXTERNAL_APPROVAL_REQUIRED", errorMessage: "No external connector was activated; provider approval and secret configuration are required." });
+  await recordAudit(db, { orgId: input.orgId, actorUserId: input.userId, action: "connector.configuration_created", targetType: "connector_configuration", targetId: id, summary: `Created draft ${input.providerType} connector for ${collection.name}`, metadata: { collectionId: input.collectionId, syncMode: input.syncMode, connectionReference, externalScope } });
+  return (await db.select().from(connectorConfigurations).where(eq(connectorConfigurations.id, id)).limit(1))[0]!;
+}
+
+export async function setConnectorConfigurationState(input: { userId: number; orgId: number; connectorId: number; state: "paused" | "disconnected" }) {
+  const scope = await getAccessScope(input.userId, input.orgId);
+  assertOrganizationManager(scope);
+  const db = await requireDb();
+  const config = (await db.select().from(connectorConfigurations).where(and(eq(connectorConfigurations.id, input.connectorId), eq(connectorConfigurations.orgId, input.orgId))).limit(1))[0];
+  if (!config) throw new TRPCError({ code: "NOT_FOUND", message: "The requested connector configuration is not in this organization." });
+  await db.update(connectorConfigurations).set({ status: input.state, disconnectedAt: input.state === "disconnected" ? new Date() : null }).where(eq(connectorConfigurations.id, config.id));
+  await recordAudit(db, { orgId: input.orgId, actorUserId: input.userId, action: `connector.${input.state}`, targetType: "connector_configuration", targetId: config.id, summary: `${input.state === "disconnected" ? "Disconnected" : "Paused"} ${config.providerType} connector configuration`, metadata: { collectionId: config.collectionId } });
+  return { success: true };
+}
+
+export async function deleteConnectorConfiguration(input: { userId: number; orgId: number; connectorId: number }) {
+  const scope = await getAccessScope(input.userId, input.orgId);
+  assertOrganizationManager(scope);
+  const db = await requireDb();
+  const config = (await db.select().from(connectorConfigurations).where(and(eq(connectorConfigurations.id, input.connectorId), eq(connectorConfigurations.orgId, input.orgId))).limit(1))[0];
+  if (!config) throw new TRPCError({ code: "NOT_FOUND", message: "The requested connector configuration is not in this organization." });
+  if (config.status === "ready") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Disconnect an approved connector before deleting its configuration." });
+  const sourceCount = (await db.select({ count: sql<number>`count(*)` }).from(sources).where(and(eq(sources.orgId, input.orgId), eq(sources.connectorConfigurationId, config.id))))[0];
+  if (Number(sourceCount?.count ?? 0) > 0) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Connector provenance is attached to indexed sources. Disable or remove those sources before deleting the configuration." });
+  await db.delete(connectorSyncRuns).where(and(eq(connectorSyncRuns.orgId, input.orgId), eq(connectorSyncRuns.connectorConfigurationId, config.id)));
+  await db.delete(connectorConfigurations).where(eq(connectorConfigurations.id, config.id));
+  await recordAudit(db, { orgId: input.orgId, actorUserId: input.userId, action: "connector.deleted", targetType: "connector_configuration", targetId: config.id, summary: `Deleted ${config.providerType} connector configuration`, metadata: { collectionId: config.collectionId, status: config.status, blockedRunMetadataRemoved: true } });
+  return { success: true };
 }
 
 export async function ingestTextSource(input: { userId: number; orgId: number; collectionId: number; name: string; content: string; sourceUrl?: string | null; type: "text" | "url" | "code" }) {

@@ -7,7 +7,7 @@ This report records the rigorous test and debugging cycle performed after the au
 | Area | Verification | Result |
 | --- | --- | --- |
 | Static analysis | TypeScript check after each server and dependency change | Passed |
-| Unit and route tests | Retrieval, logout, deadline-aware LLM invocation, scheduler-authentication, missing-key, traversal-key, and database-backed tenant-isolation suites | **14 tests passed** across 5 suites |
+| Unit and route tests | Retrieval, logout, deadline-aware LLM invocation, scheduler-authentication, missing-key, traversal-key, tenant isolation, SSO, API key/API endpoint, connector, and analytics suites | **19 tests passed** across 10 suites |
 | Production build | Vite client and bundled Express server builds | Passed |
 | Dependency audit | `pnpm audit --prod --audit-level=high` | **No known vulnerabilities** |
 | Anonymous workspace request | `nexus.workspace` request without a session | Rejected with **401** |
@@ -18,7 +18,7 @@ This report records the rigorous test and debugging cycle performed after the au
 
 ## Final validation rerun
 
-Following the completed authenticated access-control lifecycle test, database-backed isolation proof, and non-sensitive golden-evaluation work, the final validation command sequence completed successfully: `pnpm check`, `pnpm test`, `pnpm build`, and `pnpm audit --prod`. The test run passed all **14 tests across 5 suites**. The production client and server bundle built successfully, and the production dependency audit again reported **No known vulnerabilities**. Vite emitted only its advisory large-chunk notice for the production JavaScript bundle; it did not fail the build.
+Following the completed authenticated access-control lifecycle test, database-backed isolation proof, non-sensitive golden-evaluation work, and guarded Phase 4 increments, the final validation command sequence completed successfully: `pnpm check`, `pnpm test`, `pnpm build`, and `pnpm audit --prod`. The test run passed all **19 tests across 10 suites**. The production client and server bundle built successfully, and the production dependency audit again reported **No known vulnerabilities**. Vite emitted only its advisory large-chunk notice for the production JavaScript bundle; it did not fail the build.
 
 ## Defects found and resolved
 

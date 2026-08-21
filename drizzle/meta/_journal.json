@@ -43,6 +43,34 @@
       "when": 1787272760014,
       "tag": "0005_regular_moon_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1787328453675,
+      "tag": "0006_regular_whirlwind",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1787328526062,
+      "tag": "0007_absent_lady_deathstrike",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1787328928605,
+      "tag": "0008_regular_hardball",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1787329470314,
+      "tag": "0009_outgoing_iron_lad",
+      "breakpoints": true
     }
   ]
 }
