@@ -28,6 +28,7 @@ const STOP_WORDS = new Set(["a", "an", "and", "are", "as", "at", "be", "by", "fo
 export const RETRIEVAL_VERSION = "hybrid-hash-vector-sparse-rrf-v1";
 export const EVIDENCE_THRESHOLD = 0.16;
 export const EMBEDDING_DIMENSIONS = 96;
+export const DENSE_ONLY_CANDIDATE_FLOOR = 0.42;
 
 function hash(value: string) {
   return createHash("sha256").update(value).digest("hex");
@@ -136,7 +137,7 @@ export function rankCandidateChunks(question: string, candidates: CandidateChunk
     const sparseScore = Math.min(1, coverage + phraseBonus + titleBonus);
     const denseScore = Math.max(0, cosineSimilarity(queryEmbedding, parseEmbedding(candidate.embeddingJson, fullText)));
     return { candidate, matchedTerms, sparseScore, denseScore, titleBonus };
-  }).filter((entry) => entry.sparseScore > 0 || entry.denseScore >= 0.18);
+  }).filter((entry) => entry.sparseScore > 0 || entry.denseScore >= DENSE_ONLY_CANDIDATE_FLOOR);
 
   const sparseRanks = new Map(scored.slice().sort((a, b) => b.sparseScore - a.sparseScore).map((entry, index) => [entry.candidate.id, index + 1]));
   const denseRanks = new Map(scored.slice().sort((a, b) => b.denseScore - a.denseScore).map((entry, index) => [entry.candidate.id, index + 1]));

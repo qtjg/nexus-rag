@@ -60,4 +60,11 @@ describe("NEXUS evidence retrieval helpers", () => {
     expect(matching).toHaveLength(96);
     expect(matching).not.toEqual(unrelated);
   });
+
+  it("does not treat a dense-only hash collision as evidence for an unrelated question", () => {
+    const ranked = rankCandidateChunks("sapphire tundra passphrase", [
+      { id: 9, sourceId: 9, sourceName: "Release policy", collectionId: 101, title: "Release policy", sectionPath: "Checks", text: "Every release requires a security review before deployment.", embeddingJson: null },
+    ]);
+    expect(ranked).toEqual([]);
+  });
 });
