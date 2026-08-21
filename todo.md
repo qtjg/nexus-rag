@@ -64,6 +64,7 @@
 - [x] Verify the private GitHub repository contains the latest README, public-corpus evidence, and tracker state
 - [x] Verify the GitHub remote, default branch, and checkpoint-aligned repository status
 - [x] Add GitHub Actions continuous validation for type checking, automated tests, production builds, and production dependency auditing
+- [ ] Correct the GitHub Actions package-manager setup order after the initial remote CI run could not locate pnpm
 - [x] Document an external scheduler handoff contract for the existing bounded ingestion-retry worker without enabling a production worker
 - [ ] Validate and push the GitHub deployment-preparation changes to github/main
 - [ ] Present external hosting options and obtain a deployment-target decision before activating managed-service replacements
