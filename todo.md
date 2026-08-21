@@ -38,7 +38,7 @@
 - [x] Receive explicit owner authorization to implement guarded Phase 4 increments before external-review completion
 - [ ] Complete Phase 4 security and external-review approval before activating any increment for sensitive production data
 - [x] Add a non-sensitive, domain-neutral corpus fixture with documented golden questions, expected sources, and adversarial unanswerable cases
-- [ ] Build and run the PRD-required golden evaluation against user-approved representative documents before claiming the Phase 1 quality gate passes
+- [x] Build and run the PRD-required golden evaluation against the user-approved public non-sensitive representative corpus before claiming the public-corpus Phase 1 quality gate passes
 - [x] Improve retrieval precision, answer faithfulness, p95 latency, and faithfulness-judge reliability against the user-authorized non-sensitive PRD corpus
 - [x] Add isolated test-organization setup and teardown helpers so the tenant-isolation integration suite leaves no persistent QA data
 - [x] Prepare a reviewer-ready backup/restore, load/failure, and human security-review handoff package with acceptance evidence templates
@@ -57,3 +57,7 @@
 - [x] Add manager-only connector deletion for draft or disconnected configurations, retaining a meaningful audit record and cleaning blocked sync-run metadata
 - [x] Add integration coverage for connector deletion and provenance cleanup behavior
 - [x] Implement 4C privacy-preserving organization usage analytics without raw prompt or source-content retention
+- [x] Select and document a public, non-sensitive representative corpus with source URLs, licensing/usage notes, and adjudicated golden questions
+- [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
+- [x] Select and document a public, non-sensitive representative corpus with source URLs, licensing/usage notes, and adjudicated golden questions
+- [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims

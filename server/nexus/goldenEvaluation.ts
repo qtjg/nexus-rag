@@ -21,7 +21,7 @@ import {
 import { chunkText, createLocalEmbedding } from "./retrieval";
 import { askKnowledge } from "./service";
 
-export type GoldenDocument = { id: string; name: string; content: string };
+export type GoldenDocument = { id: string; name: string; content: string; sourceUrl?: string };
 export type GoldenCase = {
   id: string;
   question: string;
@@ -66,6 +66,37 @@ export const GOLDEN_CASES: GoldenCase[] = [
   { id: "g20", question: "What is the moon mission code name?", expectedDocumentIds: [], expectedSummary: "No information is available in the corpus.", category: "unanswerable" },
 ];
 
+export const PUBLIC_INCIDENT_RESPONSE_CORPUS: GoldenDocument[] = [
+  { id: "playbooks", name: "CISA Incident and Vulnerability Response Playbooks", sourceUrl: "https://www.cisa.gov/resources-tools/resources/federal-government-cybersecurity-incident-and-vulnerability-response-playbooks", content: "# Standard response procedures\n\nCISA describes incident and vulnerability response playbooks that standardize procedures to identify, coordinate, remediate, recover, and track successful mitigations affecting systems, data, and networks." },
+  { id: "ransomware-guide", name: "CISA StopRansomware Guide", sourceUrl: "https://www.cisa.gov/stopransomware/ransomware-guide", content: "# Preparation and recovery\n\nMaintain offline, encrypted backups of critical data and regularly test backup availability and integrity in a disaster recovery scenario. Maintain and regularly update golden images of critical systems. Create, maintain, and regularly exercise a cyber incident response plan and communications plan; keep a hard copy and offline version available.\n\n# Prevention\n\nConduct regular vulnerability scanning, especially on internet-facing devices. Regularly patch and update software and operating systems, prioritizing timely patching of internet-facing servers." },
+  { id: "ransomware-response", name: "CISA Ransomware Response Checklist", sourceUrl: "https://www.cisa.gov/stopransomware/ive-been-hit-ransomware", content: "# Detection and analysis\n\nDetermine which systems were impacted and immediately isolate them. If several systems or subnets appear impacted, take the network offline at the switch level. Triage impacted systems for restoration and recovery, prioritizing critical systems on a clean network using a predefined critical asset list.\n\n# Reporting and recovery\n\nFollow notification requirements in the response and communications plan and keep management informed. Preserve volatile evidence such as system memory and log buffers. Rebuild systems based on prioritization of critical services using preconfigured standard images where possible. Reconnect systems and restore data from offline, encrypted backups based on prioritization of critical services. Document lessons learned to update policies, plans, procedures, and exercises." },
+  { id: "contingency", name: "NIST SP 800-34 Rev. 1 Contingency Planning", sourceUrl: "https://csrc.nist.gov/pubs/sp/800/34/r1/upd1/final", content: "# Contingency planning\n\nNIST SP 800-34 assists organizations in understanding the purpose, process, and format of information system contingency planning development. It provides practical guidance on relationships among information-system contingency planning, other security and emergency management contingency plans, organizational resilience, and the system development life cycle. It helps personnel evaluate systems and operations to determine contingency planning requirements and priorities." },
+  { id: "incident-recommendations", name: "NIST SP 800-61 Rev. 3 Incident Response Recommendations", sourceUrl: "https://csrc.nist.gov/pubs/sp/800/61/r3/final", content: "# Incident response recommendations\n\nNIST SP 800-61 Rev. 3 helps organizations incorporate cybersecurity incident response recommendations and considerations throughout cybersecurity risk-management activities described by the NIST Cybersecurity Framework 2.0. This can help organizations prepare for responses, reduce the number and impact of incidents, and improve the efficiency and effectiveness of detection, response, and recovery activities." },
+];
+
+export const PUBLIC_INCIDENT_RESPONSE_CASES: GoldenCase[] = [
+  { id: "p01", question: "Which five activities do CISA incident and vulnerability response playbooks standardize?", expectedDocumentIds: ["playbooks"], expectedSummary: "Identify, coordinate, remediate, recover, and track successful mitigations.", category: "factual" },
+  { id: "p02", question: "What characteristics should backups of critical data have according to the CISA ransomware guide?", expectedDocumentIds: ["ransomware-guide"], expectedSummary: "They should be offline and encrypted, with availability and integrity tested regularly.", category: "factual" },
+  { id: "p03", question: "What should be maintained to rebuild critical systems quickly?", expectedDocumentIds: ["ransomware-guide"], expectedSummary: "Regularly updated golden images of critical systems.", category: "factual" },
+  { id: "p04", question: "What versions of an incident response plan should remain available?", expectedDocumentIds: ["ransomware-guide"], expectedSummary: "A hard copy and an offline version.", category: "factual" },
+  { id: "p05", question: "Which devices should receive special attention during regular vulnerability scanning?", expectedDocumentIds: ["ransomware-guide"], expectedSummary: "Internet-facing devices.", category: "factual" },
+  { id: "p06", question: "What should happen immediately after determining which systems are impacted by ransomware?", expectedDocumentIds: ["ransomware-response"], expectedSummary: "Immediately isolate the impacted systems.", category: "factual" },
+  { id: "p07", question: "What response is recommended if several systems or subnets appear impacted?", expectedDocumentIds: ["ransomware-response"], expectedSummary: "Take the network offline at the switch level.", category: "factual" },
+  { id: "p08", question: "How should impacted systems be prioritized for restoration and recovery?", expectedDocumentIds: ["ransomware-response"], expectedSummary: "Prioritize critical systems on a clean network using a predefined critical asset list.", category: "factual" },
+  { id: "p09", question: "What should be preserved because it may be volatile or have limited retention?", expectedDocumentIds: ["ransomware-response"], expectedSummary: "Evidence such as system memory and log buffers.", category: "factual" },
+  { id: "p10", question: "After recovery, what should teams document to refine future procedures and exercises?", expectedDocumentIds: ["ransomware-response"], expectedSummary: "Lessons learned from the incident and response activities.", category: "factual" },
+  { id: "p11", question: "What does NIST SP 800-34 help personnel determine?", expectedDocumentIds: ["contingency"], expectedSummary: "Contingency planning requirements and priorities by evaluating systems and operations.", category: "factual" },
+  { id: "p12", question: "Which relationships does NIST SP 800-34 discuss in its contingency planning guidance?", expectedDocumentIds: ["contingency"], expectedSummary: "Relationships among information-system contingency planning, other security and emergency plans, resilience, and the system development life cycle.", category: "factual" },
+  { id: "p13", question: "What does NIST SP 800-61 Rev. 3 seek to incorporate throughout cybersecurity risk-management activities?", expectedDocumentIds: ["incident-recommendations"], expectedSummary: "Cybersecurity incident response recommendations and considerations.", category: "factual" },
+  { id: "p14", question: "According to NIST SP 800-61 Rev. 3, what outcomes can incident-response recommendations improve?", expectedDocumentIds: ["incident-recommendations"], expectedSummary: "Preparation, reduced number and impact of incidents, and the efficiency and effectiveness of detection, response, and recovery.", category: "factual" },
+  { id: "p15", question: "What should an organization do both before and after a ransomware incident to support recovery?", expectedDocumentIds: ["ransomware-guide", "ransomware-response"], expectedSummary: "Maintain and test offline encrypted backups beforehand, then reconnect systems and restore from those backups according to critical-service priority.", category: "multi-hop" },
+  { id: "p16", question: "How do the CISA playbooks and NIST SP 800-61 Rev. 3 describe the purpose of organized incident response?", expectedDocumentIds: ["playbooks", "incident-recommendations"], expectedSummary: "Standardize response activities and improve preparation, mitigation, and detection/response/recovery effectiveness.", category: "multi-hop" },
+  { id: "p17", question: "What is the menu for the Contoso icebreaker festival?", expectedDocumentIds: [], expectedSummary: "No information is available in the corpus.", category: "unanswerable" },
+  { id: "p18", question: "Which LUN-57 platform ID performed database replication last week?", expectedDocumentIds: [], expectedSummary: "No information is available in the corpus.", category: "unanswerable" },
+  { id: "p19", question: "Where can I find the blue-orchid onboarding contract?", expectedDocumentIds: [], expectedSummary: "No information is available in the corpus.", category: "unanswerable" },
+  { id: "p20", question: "What codeword opens the Phoenix Mars gateway?", expectedDocumentIds: [], expectedSummary: "No information is available in the corpus.", category: "unanswerable" },
+];
+
 type Fixture = { orgId: number; userId: number; collectionId: number; sourceIds: number[]; documentSourceIds: Record<string, number> };
 type FaithfulnessResult = { supported: boolean; rationale: string };
 type EvaluationSummary = { answerableCases: number; precisionAt5: number; recallAt10: number; faithfulness: number; abstentionAccuracy: number; p95LatencyMs: number; faithfulnessJudgeUnavailableCases: number };
@@ -92,7 +123,7 @@ async function cleanupFixture(fixture: Fixture) {
   await db.delete(users).where(eq(users.id, fixture.userId));
 }
 
-async function createFixture(): Promise<Fixture> {
+async function createFixture(corpus: GoldenDocument[], label: string): Promise<Fixture> {
   const db = await getDb();
   if (!db) throw new Error("DATABASE_URL is required to run the golden evaluation.");
   const suffix = randomUUID().slice(0, 12);
@@ -102,14 +133,14 @@ async function createFixture(): Promise<Fixture> {
   const orgId = Number(organization[0].insertId);
   await db.insert(organizationMemberships).values({ orgId, userId, role: "owner" });
   await db.insert(organizationPolicies).values({ orgId, queryRateLimitPerMinute: 120 });
-  const collection = await db.insert(collections).values({ orgId, name: "Golden evaluation corpus", description: "Non-sensitive QA fixture." });
+  const collection = await db.insert(collections).values({ orgId, name: `${label} evaluation corpus`, description: "Non-sensitive QA fixture." });
   const collectionId = Number(collection[0].insertId);
   const documentSourceIds: Record<string, number> = {};
   const sourceIds: number[] = [];
-  for (const document of NON_SENSITIVE_GOLDEN_CORPUS) {
+  for (const document of corpus) {
     const source = await db.insert(sources).values({
       orgId, collectionId, createdByUserId: userId, type: "text", name: document.name,
-      contentHash: createHash("sha256").update(document.content).digest("hex"), extractedText: document.content, status: "indexed",
+      contentHash: createHash("sha256").update(document.content).digest("hex"), extractedText: document.content, sourceUrl: document.sourceUrl ?? null, status: "indexed",
     });
     const sourceId = Number(source[0].insertId);
     documentSourceIds[document.id] = sourceId;
@@ -167,14 +198,17 @@ async function judgeFaithfulness(item: GoldenCase, answer: string, excerpts: str
   }
 }
 
-export async function runGoldenEvaluation(): Promise<{ results: CaseResult[]; summary: EvaluationSummary }> {
-  const fixture = await createFixture();
+export async function runGoldenEvaluation(corpusProfile = process.env.NEXUS_EVAL_CORPUS === "public" ? "public" : "fixture"): Promise<{ results: CaseResult[]; summary: EvaluationSummary }> {
+  const isPublicCorpus = corpusProfile === "public";
+  const corpus = isPublicCorpus ? PUBLIC_INCIDENT_RESPONSE_CORPUS : NON_SENSITIVE_GOLDEN_CORPUS;
+  const cases = isPublicCorpus ? PUBLIC_INCIDENT_RESPONSE_CASES : GOLDEN_CASES;
+  const fixture = await createFixture(corpus, isPublicCorpus ? "Public incident-response" : "Golden");
   try {
     const results: CaseResult[] = [];
     const pendingJudges: PendingJudge[] = [];
     const skipFaithfulness = process.env.NEXUS_EVAL_SKIP_FAITHFULNESS === "1";
     const selectedCaseIds = new Set((process.env.NEXUS_EVAL_CASE_IDS || "").split(",").map((id) => id.trim()).filter(Boolean));
-    const selectedCases = selectedCaseIds.size ? GOLDEN_CASES.filter((item) => selectedCaseIds.has(item.id)) : GOLDEN_CASES;
+    const selectedCases = selectedCaseIds.size ? cases.filter((item) => selectedCaseIds.has(item.id)) : cases;
     for (const item of selectedCases) {
       const response = await askKnowledge({ userId: fixture.userId, orgId: fixture.orgId, question: item.question, collectionIds: [fixture.collectionId] });
       const retrievedDocumentIds = Object.entries(fixture.documentSourceIds)

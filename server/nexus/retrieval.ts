@@ -132,10 +132,12 @@ export function rankCandidateChunks(question: string, candidates: CandidateChunk
   const queryEmbedding = createLocalEmbedding(question);
   const scoredCandidates = candidates.map((candidate) => {
     const fullText = `${candidate.title} ${candidate.sectionPath ?? ""} ${candidate.text}`.toLowerCase();
-    const matchedTerms = queryTerms.filter((term) => fullText.includes(term));
+    const candidateTerms = new Set(terms(fullText));
+    const matchedTerms = queryTerms.filter((term) => candidateTerms.has(term));
     const coverage = matchedTerms.length / queryTerms.length;
     const phraseBonus = normalizedQuestion.length > 8 && candidate.text.toLowerCase().includes(normalizedQuestion) ? 0.25 : 0;
-    const titleBonus = queryTerms.some((term) => candidate.title.toLowerCase().includes(term)) ? 0.08 : 0;
+    const titleTerms = new Set(terms(candidate.title));
+    const titleBonus = queryTerms.some((term) => titleTerms.has(term)) ? 0.08 : 0;
     const sparseScore = Math.min(1, coverage + phraseBonus + titleBonus);
     const denseScore = Math.max(0, cosineSimilarity(queryEmbedding, parseEmbedding(candidate.embeddingJson, fullText)));
     return { candidate, matchedTerms, coverage, sparseScore, denseScore, titleBonus };
