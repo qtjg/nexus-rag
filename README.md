@@ -8,6 +8,8 @@ The selected deliverable is the private GitHub source repository: [qtjg/nexus-ra
 
 Clone the repository and run the commands in [Run and validate](#run-and-validate) to work with the code locally or in a future owner-selected environment. The Google Cloud Run records are retained only as optional, inactive architecture guidance should an accountable owner later elect to host the system externally.
 
+For a source-only setup walkthrough, see [Local development and GitHub handoff](docs/LOCAL_DEVELOPMENT.md).
+
 ## Verified project state
 
 The latest project checkpoint includes a public, non-sensitive CISA/NIST evaluation corpus. Its isolated 20-case run met the configured acceptance targets: **88.5% precision@5**, **90.6% recall@10**, **93.8% faithfulness**, **100.0% correct abstention**, and **3,551 ms p95** end-to-end latency. The run cleaned up all temporary database rows. The implementation also passes `pnpm check`, 19 automated tests across 10 suites, `pnpm build`, and `pnpm audit --prod`.
