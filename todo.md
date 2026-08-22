@@ -79,6 +79,7 @@
 - [ ] Obtain the workload identity provider and service-account identifiers required to run the keyless GitHub preflight
 - [x] Reconcile the repository documentation and tracker to the GitHub-source-only delivery decision, deferring all Cloud Run preflight and deployment actions
 - [x] Add a standalone local-development and GitHub handoff guide for the source-only NEXUS RAG package
+- [x] Add contributor and change-validation guidance for the GitHub-only NEXUS RAG source package
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
 - [x] Select and document a public, non-sensitive representative corpus with source URLs, licensing/usage notes, and adjudicated golden questions
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
