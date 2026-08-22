@@ -83,6 +83,7 @@
 - [x] Add essential GitHub repository maintenance artifacts: security reporting guidance, pull-request and issue templates, and source-review ownership defaults
 - [x] Add a concise source-package architecture overview covering components, data flow, boundaries, and evidence records
 - [x] Update the GitHub Actions validation workflow to remove the reported Node.js 20 action-runtime deprecation warning
+- [x] Correct the setup-node v5 automatic-cache initialization failure while preserving explicit Corepack pnpm setup
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
 - [x] Select and document a public, non-sensitive representative corpus with source URLs, licensing/usage notes, and adjudicated golden questions
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims

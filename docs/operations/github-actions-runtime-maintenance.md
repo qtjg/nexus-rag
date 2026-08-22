@@ -6,6 +6,8 @@ The NEXUS RAG source package uses **Node.js 22** for its application and validat
 
 The repository now uses `actions/checkout@v5` and `actions/setup-node@v5` in its primary validation workflow; the optional inactive Cloud Run preflight also uses checkout v5. This changes the action runtime only. It does not change the NEXUS RAG application’s declared Node.js 22 runtime, enable hosting, or activate a cloud preflight.
 
+The validation workflow explicitly sets `package-manager-cache: false` on setup-node v5. Its automatic cache initialization attempts to locate pnpm before the workflow's next Corepack step enables it, which causes a hosted-runner failure for this package. The workflow retains a visible Corepack initialization step before installing dependencies; this preserves deterministic package-manager setup and avoids relying on the runner’s ambient pnpm path.
+
 ## Compatibility boundary
 
 The official checkout v5 and setup-node v5 documentation states that each action runs on Node.js 24 and requires Actions Runner `v2.327.1` or later. GitHub-hosted `ubuntu-latest` runners satisfy the hosted workflow path. Owners using self-hosted runners should verify that runner baseline before invoking the workflow. [1] [2]
