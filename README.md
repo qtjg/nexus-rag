@@ -12,6 +12,8 @@ For a source-only setup walkthrough, see [Local development and GitHub handoff](
 
 For branch, review, validation, migration, and security expectations, see [Contributing to NEXUS RAG](CONTRIBUTING.md).
 
+For the component map, data flows, security boundaries, and evidence records, see the [NEXUS RAG architecture overview](docs/ARCHITECTURE.md).
+
 Repository maintenance artifacts are also included: [Security policy](SECURITY.md), [pull-request template](.github/pull_request_template.md), structured issue forms, and default [review ownership](.github/CODEOWNERS).
 
 ## Verified project state
