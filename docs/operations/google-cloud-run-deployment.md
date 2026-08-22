@@ -49,8 +49,8 @@ The exact least-privilege role bindings depend on the selected database, object-
 ## Preflight procedure
 
 1. Create and protect the `gcp-production` GitHub Environment; add the six non-secret variables listed above.
-2. Configure Workload Identity Federation in the selected Google Cloud project, including a repository- and branch-restricted provider condition. [1]
-3. Create separate deployment, runtime, and scheduler service accounts. Do not use personal accounts or static keys.
+2. Review `google-cloud-run-bootstrap.sh` with the Google Cloud administrator, then run it only with `APPLY=1`, a selected project ID, and region. The script creates no application service or scheduler; it enables prerequisite APIs and creates the restricted workload identity and service-account boundary.
+3. Review the generated workload identity provider condition and the separate deployment, runtime, and scheduler service accounts. Do not use personal accounts or static keys. [1]
 4. From GitHub Actions, run **NEXUS RAG Google Cloud Run preflight** and enter `PREFLIGHT`. It validates the project and identities without deployment.
 5. Record the run URL, relevant IAM review, and any failures in `docs/operations/external-review-evidence-register.md`.
 

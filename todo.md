@@ -73,6 +73,7 @@
 - [ ] Configure and validate approved external replacements for managed authentication, database, object storage, LLM access, and retry scheduling
 - [x] Add a Google Cloud Run deployment-preflight workflow using GitHub-to-Google workload identity federation and least-privilege deployment roles
 - [x] Document the required Google Cloud Run service, Secret Manager, Cloud SQL or compatible database, object storage, and scheduler architecture before production activation
+- [x] Add a reviewable non-deployment Google Cloud bootstrap procedure for the workload-identity and service-account preflight boundary
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
 - [x] Select and document a public, non-sensitive representative corpus with source URLs, licensing/usage notes, and adjudicated golden questions
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
