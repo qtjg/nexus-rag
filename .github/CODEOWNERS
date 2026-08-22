@@ -1,0 +1,3 @@
+# Default review ownership for the private NEXUS RAG source package.
+# Refine these paths when additional maintainers are added.
+* @qtjg

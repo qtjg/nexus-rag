@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security reporting policy
+    url: https://github.com/qtjg/nexus-rag/security/policy
+    about: Use the private security reporting route and never place vulnerability details in an issue.

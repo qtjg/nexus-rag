@@ -12,6 +12,8 @@ For a source-only setup walkthrough, see [Local development and GitHub handoff](
 
 For branch, review, validation, migration, and security expectations, see [Contributing to NEXUS RAG](CONTRIBUTING.md).
 
+Repository maintenance artifacts are also included: [Security policy](SECURITY.md), [pull-request template](.github/pull_request_template.md), structured issue forms, and default [review ownership](.github/CODEOWNERS).
+
 ## Verified project state
 
 The latest project checkpoint includes a public, non-sensitive CISA/NIST evaluation corpus. Its isolated 20-case run met the configured acceptance targets: **88.5% precision@5**, **90.6% recall@10**, **93.8% faithfulness**, **100.0% correct abstention**, and **3,551 ms p95** end-to-end latency. The run cleaned up all temporary database rows. The implementation also passes `pnpm check`, 19 automated tests across 10 suites, `pnpm build`, and `pnpm audit --prod`.

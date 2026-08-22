@@ -1,0 +1,44 @@
+name: Feature request
+description: Propose a scoped improvement to the NEXUS RAG source package.
+title: "feature: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include customer content, credentials, provider secrets, or sensitive architecture details. Hosting and production activation require a separate owner decision.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or user outcome
+      description: Describe the evidence-backed need this source-package change addresses.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed source change
+      description: Explain the expected behavior, affected components, and non-goals.
+    validations:
+      required: true
+  - type: dropdown
+    id: impact-area
+    attributes:
+      label: Primary impact area
+      options:
+        - Retrieval quality or grounded answers
+        - Source ingestion
+        - Tenant governance or access controls
+        - Evaluation and observability
+        - Developer experience or documentation
+        - External integration planning only
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance evidence
+      description: List the tests, evaluation evidence, migration checks, or documentation updates that would demonstrate completion.
+    validations:
+      required: true

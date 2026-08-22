@@ -1,0 +1,44 @@
+name: Bug report
+description: Report a reproducible non-security issue in the NEXUS RAG source package.
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include secrets, access tokens, database URLs, customer documents, or vulnerability details. Use the security policy for security-sensitive reports.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options:
+        - Chat and retrieval
+        - Source ingestion
+        - Collections or access control
+        - Evaluation or analytics
+        - API or service keys
+        - Build, tests, or developer tooling
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary and impact
+      description: State the observed behavior and who or what it affects.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Safe reproduction steps
+      description: Provide minimal non-sensitive steps, expected behavior, and actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Environment and validation context
+      description: Include branch/commit, Node and pnpm versions, relevant non-secret logs, and tests already run.
