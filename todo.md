@@ -85,6 +85,7 @@
 - [x] Update the GitHub Actions validation workflow to remove the reported Node.js 20 action-runtime deprecation warning
 - [x] Correct the setup-node v5 automatic-cache initialization failure while preserving explicit Corepack pnpm setup
 - [x] Record the owner-approved deferral of external hosting, worker activation, and human-review gates for the GitHub-only source handoff
+- [x] Add the verified repository owner as an authentic GitHub contributor through an owner-authored source-package contribution
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
 - [x] Select and document a public, non-sensitive representative corpus with source URLs, licensing/usage notes, and adjudicated golden questions
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
