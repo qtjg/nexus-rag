@@ -2,7 +2,7 @@
 
 ## Scope and non-deployment statement
 
-Google Cloud Run is the selected external hosting target. This handoff adds a **manual preflight workflow only**. It authenticates from GitHub Actions through Workload Identity Federation, validates non-secret deployment identifiers, and verifies the project and runtime service-account boundary. It does **not** build an external production image, deploy a Cloud Run revision, create a scheduler, read secret values, or activate any guarded NEXUS RAG feature.
+Google Cloud Run architecture has been documented as an **optional future hosting path only**. The selected deliverable is the GitHub source repository, not a Cloud Run deployment. This handoff includes a manual preflight workflow solely for a future accountable owner who elects to configure Google Cloud. It does **not** build an external production image, deploy a Cloud Run revision, create a scheduler, read secret values, or activate any guarded NEXUS RAG feature.
 
 > The existing application depends on managed OAuth, object storage, LLM access, and scheduled-callback services. Those dependencies must be replaced and tested before a Cloud Run deployment can be considered functional or approved for sensitive data.
 

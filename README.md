@@ -2,6 +2,12 @@
 
 NEXUS RAG is an organization-scoped AI knowledge-intelligence platform with grounded retrieval, source ingestion, citations, governance controls, evaluation, release gates, and guarded Phase 4 enterprise controls.
 
+## Delivery mode: GitHub source package
+
+The selected deliverable is the private GitHub source repository: [qtjg/nexus-rag](https://github.com/qtjg/nexus-rag). It includes the full application source, database schema and migrations, test suites, continuous validation workflow, quality evidence, and operations documentation. **No hosted deployment, Cloud Run preflight, Cloud Run service, scheduler, or cloud credential is activated by this repository handoff.**
+
+Clone the repository and run the commands in [Run and validate](#run-and-validate) to work with the code locally or in a future owner-selected environment. The Google Cloud Run records are retained only as optional, inactive architecture guidance should an accountable owner later elect to host the system externally.
+
 ## Verified project state
 
 The latest project checkpoint includes a public, non-sensitive CISA/NIST evaluation corpus. Its isolated 20-case run met the configured acceptance targets: **88.5% precision@5**, **90.6% recall@10**, **93.8% faithfulness**, **100.0% correct abstention**, and **3,551 ms p95** end-to-end latency. The run cleaned up all temporary database rows. The implementation also passes `pnpm check`, 19 automated tests across 10 suites, `pnpm build`, and `pnpm audit --prod`.
@@ -23,7 +29,7 @@ The application targets Node.js 22 and uses `pnpm`. The server honors the runtim
 
 ## GitHub and external hosting boundary
 
-This repository can be used as the private source of record in GitHub. The current implementation is designed for the managed project runtime and uses platform-managed authentication, object storage, the built-in LLM proxy, and scheduled retry facilities. Moving the code to an external host is **not** a drop-in deployment: those services need equivalent production adapters, credentials, security review, and tested rollback before external deployment.
+This repository is the private source of record in GitHub. The current implementation is designed for the managed project runtime and uses platform-managed authentication, object storage, the built-in LLM proxy, and scheduled retry facilities. The user has **not** selected an external host for this handoff. If the code is later moved to an external host, that is not a drop-in deployment: the listed services need equivalent production adapters, credentials, security review, and tested rollback first.
 
 | Capability in this project | Current managed dependency | Required external-hosting decision |
 | --- | --- | --- |
