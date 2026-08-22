@@ -67,7 +67,12 @@
 - [x] Correct the GitHub Actions package-manager setup order after the initial remote CI run could not locate pnpm
 - [x] Document an external scheduler handoff contract for the existing bounded ingestion-retry worker without enabling a production worker
 - [x] Validate and push the GitHub deployment-preparation changes to github/main
-- [ ] Present external hosting options and obtain a deployment-target decision before activating managed-service replacements
+- [x] Present external hosting options and obtain a deployment-target decision before activating managed-service replacements
+- [ ] Select the cloud hosting provider, account/project boundary, deployment region, and public URL strategy for the GitHub Actions deployment
+- [ ] Create host-specific GitHub Actions deployment configuration using least-privilege credentials or workload identity
+- [ ] Configure and validate approved external replacements for managed authentication, database, object storage, LLM access, and retry scheduling
+- [x] Add a Google Cloud Run deployment-preflight workflow using GitHub-to-Google workload identity federation and least-privilege deployment roles
+- [x] Document the required Google Cloud Run service, Secret Manager, Cloud SQL or compatible database, object storage, and scheduler architecture before production activation
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
 - [x] Select and document a public, non-sensitive representative corpus with source URLs, licensing/usage notes, and adjudicated golden questions
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims

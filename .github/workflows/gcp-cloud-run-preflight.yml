@@ -1,0 +1,72 @@
+name: NEXUS RAG Google Cloud Run preflight
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type PREFLIGHT to verify the configured Google Cloud deployment boundary without deploying.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: nexus-rag-gcp-preflight
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    if: github.event.inputs.confirm == 'PREFLIGHT'
+    name: Verify Google Cloud Run deployment prerequisites
+    environment: gcp-production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_REGION: ${{ vars.GCP_REGION }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      GCP_RUNTIME_SERVICE_ACCOUNT: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
+      GCP_CLOUD_RUN_SERVICE: ${{ vars.GCP_CLOUD_RUN_SERVICE }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Validate non-secret deployment variables
+        run: |
+          set -euo pipefail
+          required=(
+            GCP_PROJECT_ID
+            GCP_REGION
+            GCP_WORKLOAD_IDENTITY_PROVIDER
+            GCP_DEPLOY_SERVICE_ACCOUNT
+            GCP_RUNTIME_SERVICE_ACCOUNT
+            GCP_CLOUD_RUN_SERVICE
+          )
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing required GitHub environment variable: ${name}" >&2
+              exit 1
+            fi
+          done
+          echo "Non-secret deployment variables are present."
+
+      - name: Authenticate with Google Cloud workload identity federation
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Verify Cloud Run deployment boundary
+        run: |
+          set -euo pipefail
+          gcloud config set project "$GCP_PROJECT_ID"
+          gcloud projects describe "$GCP_PROJECT_ID" --format='value(projectId)'
+          gcloud iam service-accounts describe "$GCP_RUNTIME_SERVICE_ACCOUNT" --format='value(email)'
+          gcloud run services describe "$GCP_CLOUD_RUN_SERVICE" --region "$GCP_REGION" --format='value(metadata.name)' || true
+          echo "Preflight completed. This workflow does not deploy an application or inspect secret values."
