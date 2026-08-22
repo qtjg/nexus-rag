@@ -38,7 +38,7 @@ pnpm build
 pnpm audit --prod
 ```
 
-The expected baseline is **19 tests across 10 suites**, a successful TypeScript check, a production build, and no known production dependency vulnerabilities. GitHub Actions repeats this sequence for changes pushed to `main`.
+The expected baseline is **23 tests across 12 suites**, a successful TypeScript check, a production build, and no known production dependency vulnerabilities. GitHub Actions repeats this sequence for changes pushed to `main`.
 
 ## Local application commands
 

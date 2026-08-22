@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import DashboardLayout from "@/components/DashboardLayout";
 import Collections from "@/pages/Collections";
 import Evaluation from "@/pages/Evaluation";
+import GitIntelligence from "@/pages/GitIntelligence";
 import Home from "@/pages/Home";
 import NotFound from "@/pages/NotFound";
 import Settings from "@/pages/Settings";
@@ -19,6 +20,7 @@ function Router() {
         <Route path="/sources" component={SourceLibrary} />
         <Route path="/collections" component={Collections} />
         <Route path="/evaluation" component={Evaluation} />
+        <Route path="/git-intelligence" component={GitIntelligence} />
         <Route path="/settings" component={Settings} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />

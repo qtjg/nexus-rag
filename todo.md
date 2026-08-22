@@ -86,6 +86,16 @@
 - [x] Correct the setup-node v5 automatic-cache initialization failure while preserving explicit Corepack pnpm setup
 - [x] Record the owner-approved deferral of external hosting, worker activation, and human-review gates for the GitHub-only source handoff
 - [x] Add the verified repository owner as an authentic GitHub contributor through an owner-authored source-package contribution
+- [x] Confirm which transferable repository release improvements or Git-intelligence capabilities from the referenced task should be added to NEXUS RAG
+- [x] Add governed repository snapshot records with bounded manual source inputs, organization scope, provenance, and no repository credential storage
+- [x] Add scoped Git-diff review with structured cited findings, truncation safeguards, and explicit non-execution of submitted content
+- [x] Add a Git-intelligence workspace for snapshot registration and evidence-based diff review
+- [x] Add Git-intelligence isolation, scope, truncation, and finding-citation regression coverage
+- [x] Add release-quality source materials including a changelog, Git-intelligence examples, and upgraded package metadata
+- [ ] Validate and synchronize the approved Git-intelligence upgrade to github/main
+- [ ] Commit the Git-intelligence schema migration, services, UI, tests, changelog, and documentation to github/main
+- [ ] Verify github/main contains the Git-intelligence upgrade and its migration records
+- [ ] Confirm the GitHub Actions validation run for the Git-intelligence upgrade passes remotely
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
 - [x] Select and document a public, non-sensitive representative corpus with source URLs, licensing/usage notes, and adjudicated golden questions
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims

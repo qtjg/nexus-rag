@@ -27,6 +27,7 @@ import {
   ChevronDown,
   Database,
   FileSearch,
+  GitBranch,
   LogOut,
   MessageSquareText,
   PanelLeft,
@@ -44,6 +45,7 @@ const menuItems = [
   { icon: FileSearch, label: "Source library", path: "/sources" },
   { icon: Database, label: "Collections", path: "/collections" },
   { icon: BarChart3, label: "Evaluation", path: "/evaluation" },
+  { icon: GitBranch, label: "Git intelligence", path: "/git-intelligence" },
   { icon: Settings2, label: "Control plane", path: "/settings" },
 ];
 

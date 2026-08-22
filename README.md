@@ -14,6 +14,10 @@ For branch, review, validation, migration, and security expectations, see [Contr
 
 For the component map, data flows, security boundaries, and evidence records, see the [NEXUS RAG architecture overview](docs/ARCHITECTURE.md).
 
+## Git intelligence
+
+The 1.1.0 source-package upgrade adds governed repository snapshot registration and cited Git-diff review. Submitted code is manually scoped to an authorized collection, bounded before storage, and treated as untrusted evidence; NEXUS never clones the repository, stores repository credentials, or executes submitted content. See the [Git intelligence example](docs/examples/git-intelligence-example.md), [architecture](docs/architecture/git-intelligence.md), and [changelog](CHANGELOG.md).
+
 Repository maintenance artifacts are also included: [Security policy](SECURITY.md), [pull-request template](.github/pull_request_template.md), structured issue forms, and default [review ownership](.github/CODEOWNERS).
 
 For GitHub Actions runtime maintenance and self-hosted runner compatibility, see [GitHub Actions runtime maintenance](docs/operations/github-actions-runtime-maintenance.md).
@@ -22,7 +26,7 @@ The owner-approved separation between the complete source package and deferred o
 
 ## Verified project state
 
-The latest project checkpoint includes a public, non-sensitive CISA/NIST evaluation corpus. Its isolated 20-case run met the configured acceptance targets: **88.5% precision@5**, **90.6% recall@10**, **93.8% faithfulness**, **100.0% correct abstention**, and **3,551 ms p95** end-to-end latency. The run cleaned up all temporary database rows. The implementation also passes `pnpm check`, 19 automated tests across 10 suites, `pnpm build`, and `pnpm audit --prod`.
+The latest project checkpoint includes a public, non-sensitive CISA/NIST evaluation corpus. Its isolated 20-case run met the configured acceptance targets: **88.5% precision@5**, **90.6% recall@10**, **93.8% faithfulness**, **100.0% correct abstention**, and **3,551 ms p95** end-to-end latency. The run cleaned up all temporary database rows. The current 1.1.0 source package also passes `pnpm check`, **23 automated tests across 12 suites**, `pnpm build`, and `pnpm audit --prod`.
 
 > The public-corpus result demonstrates the pipeline on approved public material. It does **not** authorize sensitive-data onboarding or replace the external backup/restore, load/failure, and qualified human security-review gates.
 

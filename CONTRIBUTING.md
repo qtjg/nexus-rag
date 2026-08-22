@@ -27,7 +27,7 @@ pnpm build
 pnpm audit --prod
 ```
 
-The current baseline is **19 tests across 10 suites**, a successful type check, a production build, and no known production dependency vulnerabilities. Document any intentional deviation from that baseline in the pull request.
+The current baseline is **23 tests across 12 suites**, a successful type check, a production build, and no known production dependency vulnerabilities. Document any intentional deviation from that baseline in the pull request.
 
 ## Change-specific expectations
 

@@ -288,6 +288,68 @@ export const ingestionJobs = mysqlTable(
   ],
 );
 
+export const gitRepositorySnapshots = mysqlTable(
+  "git_repository_snapshots",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    orgId: int("orgId").notNull(),
+    collectionId: int("collectionId").notNull(),
+    sourceId: int("sourceId").notNull(),
+    createdByUserId: int("createdByUserId").notNull(),
+    repositoryLabel: varchar("repositoryLabel", { length: 160 }).notNull(),
+    repositoryReference: varchar("repositoryReference", { length: 500 }),
+    revision: varchar("revision", { length: 128 }).notNull(),
+    baseRevision: varchar("baseRevision", { length: 128 }),
+    kind: mysqlEnum("kind", ["snapshot", "diff"]).notNull(),
+    fileCount: int("fileCount").notNull().default(0),
+    inputTruncated: boolean("inputTruncated").notNull().default(false),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [
+    index("git_repository_snapshots_org_collection_created_idx").on(table.orgId, table.collectionId, table.createdAt),
+    index("git_repository_snapshots_org_source_idx").on(table.orgId, table.sourceId),
+  ],
+);
+
+export const gitReviewRuns = mysqlTable(
+  "git_review_runs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    orgId: int("orgId").notNull(),
+    snapshotId: int("snapshotId").notNull(),
+    reviewedByUserId: int("reviewedByUserId").notNull(),
+    mode: mysqlEnum("mode", ["deterministic", "ai_assisted"]).notNull().default("deterministic"),
+    status: mysqlEnum("status", ["completed", "degraded"]).notNull().default("completed"),
+    inputTruncated: boolean("inputTruncated").notNull().default(false),
+    summary: text("summary").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [index("git_review_runs_org_snapshot_created_idx").on(table.orgId, table.snapshotId, table.createdAt)],
+);
+
+export const gitReviewFindings = mysqlTable(
+  "git_review_findings",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    orgId: int("orgId").notNull(),
+    reviewRunId: int("reviewRunId").notNull(),
+    snapshotId: int("snapshotId").notNull(),
+    severity: mysqlEnum("severity", ["info", "low", "medium", "high", "critical"]).notNull(),
+    category: mysqlEnum("category", ["correctness", "security", "data_flow", "testing", "maintainability"]).notNull(),
+    path: varchar("path", { length: 512 }),
+    diffLine: int("diffLine"),
+    title: varchar("title", { length: 255 }).notNull(),
+    evidence: mediumtext("evidence").notNull(),
+    recommendation: text("recommendation").notNull(),
+    engine: mysqlEnum("engine", ["deterministic", "llm"]).notNull().default("deterministic"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [
+    index("git_review_findings_org_snapshot_idx").on(table.orgId, table.snapshotId, table.createdAt),
+    index("git_review_findings_run_idx").on(table.reviewRunId),
+  ],
+);
+
 export const chunks = mysqlTable(
   "chunks",
   {
