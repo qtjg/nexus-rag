@@ -75,6 +75,8 @@
 - [x] Document the required Google Cloud Run service, Secret Manager, Cloud SQL or compatible database, object storage, and scheduler architecture before production activation
 - [x] Add a reviewable non-deployment Google Cloud bootstrap procedure for the workload-identity and service-account preflight boundary
 - [x] Synchronize and verify the latest Google Cloud Run preparation artifacts on github/main
+- [x] Record the supplied Google Cloud project `nexus-rag-prod-123456` and region `us-central1` in the Cloud Run deployment handoff
+- [ ] Obtain the workload identity provider and service-account identifiers required to run the keyless GitHub preflight
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
 - [x] Select and document a public, non-sensitive representative corpus with source URLs, licensing/usage notes, and adjudicated golden questions
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims

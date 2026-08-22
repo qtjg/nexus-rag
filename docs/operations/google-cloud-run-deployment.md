@@ -18,6 +18,19 @@ Google Cloud Run is the selected external hosting target. This handoff adds a **
 | Scheduler | Cloud Scheduler calling a separately adapted private worker path or a Cloud Run Job | Replaces the managed scheduled-callback identity without exposing the existing cron-only route |
 | Observability | Cloud Logging, Monitoring, and alerting | Captures web errors, ingestion retry backlog, dead-letter count, scheduler results, and deployment revisions |
 
+## Selected deployment boundary
+
+The following values were supplied by the owner on **2026-08-22**. They are non-secret planning inputs and have not yet been authenticated or verified against Google Cloud.
+
+| Parameter | Selected value | Status |
+| --- | --- | --- |
+| Google Cloud project ID | `nexus-rag-prod-123456` | Supplied; keyless preflight pending |
+| Cloud Run region | `us-central1` | Supplied; service not created |
+| Cloud Run service name | `nexus-rag` | Proposed by the reviewed bootstrap procedure; not created |
+| Public URL strategy | Cloud Run-generated URL followed by an owner-approved custom domain decision | Deferred until the private service and identity adapter are verified |
+
+No credential, service account, Workload Identity Provider, Cloud Run service, scheduler, or managed dependency is created by recording this boundary.
+
 ## GitHub-to-Google trust boundary
 
 The repository includes `.github/workflows/gcp-cloud-run-preflight.yml`. It uses the GitHub OIDC token and `google-github-actions/auth@v3` with Workload Identity Federation; the workflow requires `id-token: write` and deliberately has no service-account key JSON. Google recommends workload identity federation for deployment pipelines because it removes the need to manage long-lived service-account keys. [1] [2]
@@ -49,7 +62,7 @@ The exact least-privilege role bindings depend on the selected database, object-
 ## Preflight procedure
 
 1. Create and protect the `gcp-production` GitHub Environment; add the six non-secret variables listed above.
-2. Review `google-cloud-run-bootstrap.sh` with the Google Cloud administrator, then run it only with `APPLY=1`, a selected project ID, and region. The script creates no application service or scheduler; it enables prerequisite APIs and creates the restricted workload identity and service-account boundary.
+2. Review `google-cloud-run-bootstrap.sh` with the Google Cloud administrator, then run it only with `APPLY=1 nexus-rag-prod-123456 us-central1`. The script creates no application service or scheduler; it enables prerequisite APIs and creates the restricted workload identity and service-account boundary.
 3. Review the generated workload identity provider condition and the separate deployment, runtime, and scheduler service accounts. Do not use personal accounts or static keys. [1]
 4. From GitHub Actions, run **NEXUS RAG Google Cloud Run preflight** and enter `PREFLIGHT`. It validates the project and identities without deployment.
 5. Record the run URL, relevant IAM review, and any failures in `docs/operations/external-review-evidence-register.md`.
