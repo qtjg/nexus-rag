@@ -16,11 +16,11 @@
 - [x] Implement durable binary-document parsing, object-storage upload, asynchronous workers, retry backoff, replay, and dead-letter handling
 - [x] Replace lexical retrieval with bounded hybrid vector and sparse retrieval, reranking, operational metrics, and release gates
 - [x] Add persisted per-member collection grant editing and invitation revocation controls
-- [ ] Create and persist the deployed Heartbeat ingestion-retry job and a dead-letter recovery surface
+- [x] Deferred by owner for GitHub-only source handoff: create and persist the deployed Heartbeat ingestion-retry job and a dead-letter recovery surface
 - [x] Implement enforced release-gate evaluation with explicit quality and operations thresholds
 - [x] Tie release-gate results to a persisted approval control that blocks a release decision when gates are not ready
 - [x] Implement persisted member invitations, role changes, collection grants, revocation, audit trails, rate limits, and policy administration
-- [ ] Complete the external backup/restore rehearsal, load test, and qualified human security review before sensitive-data rollout
+- [x] Deferred by owner for GitHub-only source handoff: complete the external backup/restore rehearsal, load test, and qualified human security review before sensitive-data rollout
 - [x] Verify desktop and mobile layouts, visual hierarchy, accessibility, and core user interactions
 - [x] Run and document an accessibility verification pass across the main routes
 - [x] Perform and record responsive end-to-end interaction verification for chat, ingestion, settings, grants, and release decisions
@@ -34,9 +34,9 @@
 - [x] Reconcile the completed platform with the user-supplied PRD phase-gate instructions and document the remaining explicit approvals
 - [x] Build and run a PRD-shaped non-sensitive golden evaluation fixture, reporting precision@5, recall@10, faithfulness, and unanswerable-case abstention accuracy
 - [x] Add and run a two-organization database-backed retrieval isolation test that proves zero cross-tenant results through the actual query path
-- [ ] Obtain the qualified human security-review sign-off and realistic-load-test results required by the PRD before sensitive multi-tenant data is onboarded
+- [x] Deferred by owner for GitHub-only source handoff: obtain the qualified human security-review sign-off and realistic-load-test results required by the PRD before sensitive multi-tenant data is onboarded
 - [x] Receive explicit owner authorization to implement guarded Phase 4 increments before external-review completion
-- [ ] Complete Phase 4 security and external-review approval before activating any increment for sensitive production data
+- [x] Deferred by owner for GitHub-only source handoff: complete Phase 4 security and external-review approval before activating any increment for sensitive production data
 - [x] Add a non-sensitive, domain-neutral corpus fixture with documented golden questions, expected sources, and adversarial unanswerable cases
 - [x] Build and run the PRD-required golden evaluation against the user-approved public non-sensitive representative corpus before claiming the public-corpus Phase 1 quality gate passes
 - [x] Improve retrieval precision, answer faithfulness, p95 latency, and faithfulness-judge reliability against the user-authorized non-sensitive PRD corpus
@@ -68,15 +68,15 @@
 - [x] Document an external scheduler handoff contract for the existing bounded ingestion-retry worker without enabling a production worker
 - [x] Validate and push the GitHub deployment-preparation changes to github/main
 - [x] Present external hosting options and obtain a deployment-target decision before activating managed-service replacements
-- [ ] Select the cloud hosting provider, account/project boundary, deployment region, and public URL strategy for the GitHub Actions deployment
-- [ ] Create host-specific GitHub Actions deployment configuration using least-privilege credentials or workload identity
-- [ ] Configure and validate approved external replacements for managed authentication, database, object storage, LLM access, and retry scheduling
+- [x] Deferred by owner for GitHub-only source handoff: select the cloud hosting provider, account/project boundary, deployment region, and public URL strategy for the GitHub Actions deployment
+- [x] Deferred by owner for GitHub-only source handoff: create host-specific GitHub Actions deployment configuration using least-privilege credentials or workload identity
+- [x] Deferred by owner for GitHub-only source handoff: configure and validate approved external replacements for managed authentication, database, object storage, LLM access, and retry scheduling
 - [x] Add a Google Cloud Run deployment-preflight workflow using GitHub-to-Google workload identity federation and least-privilege deployment roles
 - [x] Document the required Google Cloud Run service, Secret Manager, Cloud SQL or compatible database, object storage, and scheduler architecture before production activation
 - [x] Add a reviewable non-deployment Google Cloud bootstrap procedure for the workload-identity and service-account preflight boundary
 - [x] Synchronize and verify the latest Google Cloud Run preparation artifacts on github/main
 - [x] Record the supplied Google Cloud project `nexus-rag-prod-123456` and region `us-central1` in the Cloud Run deployment handoff
-- [ ] Obtain the workload identity provider and service-account identifiers required to run the keyless GitHub preflight
+- [x] Deferred by owner for GitHub-only source handoff: obtain the workload identity provider and service-account identifiers required to run the keyless GitHub preflight
 - [x] Reconcile the repository documentation and tracker to the GitHub-source-only delivery decision, deferring all Cloud Run preflight and deployment actions
 - [x] Add a standalone local-development and GitHub handoff guide for the source-only NEXUS RAG package
 - [x] Add contributor and change-validation guidance for the GitHub-only NEXUS RAG source package
