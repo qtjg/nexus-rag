@@ -18,6 +18,8 @@ Repository maintenance artifacts are also included: [Security policy](SECURITY.m
 
 For GitHub Actions runtime maintenance and self-hosted runner compatibility, see [GitHub Actions runtime maintenance](docs/operations/github-actions-runtime-maintenance.md).
 
+The owner-approved separation between the complete source package and deferred operational gates is recorded in [GitHub source handoff decision](docs/operations/source-handoff-decision.md).
+
 ## Verified project state
 
 The latest project checkpoint includes a public, non-sensitive CISA/NIST evaluation corpus. Its isolated 20-case run met the configured acceptance targets: **88.5% precision@5**, **90.6% recall@10**, **93.8% faithfulness**, **100.0% correct abstention**, and **3,551 ms p95** end-to-end latency. The run cleaned up all temporary database rows. The implementation also passes `pnpm check`, 19 automated tests across 10 suites, `pnpm build`, and `pnpm audit --prod`.
