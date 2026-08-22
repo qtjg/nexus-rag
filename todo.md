@@ -92,10 +92,10 @@
 - [x] Add a Git-intelligence workspace for snapshot registration and evidence-based diff review
 - [x] Add Git-intelligence isolation, scope, truncation, and finding-citation regression coverage
 - [x] Add release-quality source materials including a changelog, Git-intelligence examples, and upgraded package metadata
-- [ ] Validate and synchronize the approved Git-intelligence upgrade to github/main
-- [ ] Commit the Git-intelligence schema migration, services, UI, tests, changelog, and documentation to github/main
-- [ ] Verify github/main contains the Git-intelligence upgrade and its migration records
-- [ ] Confirm the GitHub Actions validation run for the Git-intelligence upgrade passes remotely
+- [x] Validate and synchronize the approved Git-intelligence upgrade to github/main
+- [x] Commit the Git-intelligence schema migration, services, UI, tests, changelog, and documentation to github/main
+- [x] Verify github/main contains the Git-intelligence upgrade and its migration records
+- [x] Confirm the GitHub Actions validation run for the Git-intelligence upgrade passes remotely
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
 - [x] Select and document a public, non-sensitive representative corpus with source URLs, licensing/usage notes, and adjudicated golden questions
 - [x] Run and document the isolated public-corpus quality evaluation, verify cleanup, and retain its results separately from customer-data readiness claims
