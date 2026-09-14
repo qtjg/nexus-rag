@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="360" viewBox="0 0 880 360" role="img" aria-label="qtjg/nexus-rag 3D language stack">
+<defs>
+<linearGradient id="bg5a02917d" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#0c0d18"/>
+<stop offset="1" stop-color="#15182d"/>
+</linearGradient>
+<clipPath id="clip"><rect width="880" height="360"/></clipPath>
+</defs>
+<rect width="880" height="360" fill="url(#bg5a02917d)"/>
+<text x="44" y="48" font-family="'Segoe UI',-apple-system,'Helvetica Neue',Arial,sans-serif" font-size="15" font-weight="800" letter-spacing="5" fill="#c3c6df">LANGUAGE STACK</text>
+<text x="44" y="70" font-family="'Segoe UI',-apple-system,'Helvetica Neue',Arial,sans-serif" font-size="12" letter-spacing="2" fill="#8a8da8">qtjg/nexus-rag</text>
+<ellipse cx="190" cy="257" rx="64" ry="11" fill="#3c4cdd" opacity="0.20">
+<animate attributeName="opacity" values="0.12;0.30;0.12" dur="4s" repeatCount="indefinite"/>
+</ellipse>
+<polygon points="60,270 440,202 820,270 440,338" fill="#171827" stroke="#7078c2" stroke-opacity="0.35" stroke-width="1.2"/><polygon points="60,270 440,202 820,270 440,338" fill="none" stroke="#858ee0" stroke-opacity="0.10" stroke-width="6"/>
+<polygon points="190.0,146.7 238.0,122.7 190.0,98.7 142.0,122.7" fill="#498cd4" stroke="#abd0f8" stroke-width="0.8"/><polygon points="142.0,224.7 190.0,248.7 190.0,146.7 142.0,122.7" fill="#2662a2"/><polygon points="190.0,248.7 238.0,224.7 238.0,122.7 190.0,146.7" fill="#1b4674"/><polygon points="376.7,179.3 424.7,155.3 376.7,131.3 328.7,155.3" fill="#d4c449" stroke="#f8efab" stroke-width="0.8"/><polygon points="328.7,191.3 376.7,215.3 376.7,179.3 328.7,155.3" fill="#a29326"/><polygon points="376.7,215.3 424.7,191.3 424.7,155.3 376.7,179.3" fill="#74691b"/><polygon points="563.3,198.2 611.3,174.2 563.3,150.2 515.3,174.2" fill="#8149d4" stroke="#c9abf8" stroke-width="0.8"/><polygon points="515.3,202.1 563.3,226.1 563.3,198.2 515.3,174.2" fill="#5826a2"/><polygon points="563.3,226.1 611.3,202.1 611.3,174.2 563.3,198.2" fill="#3f1b74"/><polygon points="750.0,235.4 798.0,211.4 750.0,187.4 702.0,211.4" fill="#d46549" stroke="#f8baab" stroke-width="0.8"/><polygon points="702.0,235.5 750.0,259.5 750.0,235.4 702.0,211.4" fill="#a23f26"/><polygon points="750.0,259.5 798.0,235.5 798.0,211.4 750.0,235.4" fill="#742d1b"/>
+<text x="190" y="279" font-family="'Segoe UI',-apple-system,'Helvetica Neue',Arial,sans-serif" font-size="13" font-weight="600" text-anchor="middle" fill="#c9d6e8">TypeScript</text><text x="190" y="299" font-family="'Segoe UI',-apple-system,'Helvetica Neue',Arial,sans-serif" font-size="14" font-weight="800" text-anchor="middle" fill="#7eb6f1">95.0%</text><text x="377" y="245" font-family="'Segoe UI',-apple-system,'Helvetica Neue',Arial,sans-serif" font-size="13" font-weight="600" text-anchor="middle" fill="#c9d6e8">JavaScript</text><text x="377" y="265" font-family="'Segoe UI',-apple-system,'Helvetica Neue',Arial,sans-serif" font-size="14" font-weight="800" text-anchor="middle" fill="#f1e37e">4.0%</text><text x="563" y="256" font-family="'Segoe UI',-apple-system,'Helvetica Neue',Arial,sans-serif" font-size="13" font-weight="600" text-anchor="middle" fill="#c9d6e8">CSS</text><text x="563" y="276" font-family="'Segoe UI',-apple-system,'Helvetica Neue',Arial,sans-serif" font-size="14" font-weight="800" text-anchor="middle" fill="#ac7ef1">0.8%</text><text x="750" y="289" font-family="'Segoe UI',-apple-system,'Helvetica Neue',Arial,sans-serif" font-size="13" font-weight="600" text-anchor="middle" fill="#c9d6e8">HTML</text><text x="750" y="309" font-family="'Segoe UI',-apple-system,'Helvetica Neue',Arial,sans-serif" font-size="14" font-weight="800" text-anchor="middle" fill="#f1957e">0.1%</text>
+<g clip-path="url(#clip)"><polygon points="0,0 150,0 60,360 -90,360" fill="#ffffff" opacity="0.045"><animateTransform attributeName="transform" type="translate" from="-260 0" to="1140 0" dur="8.0s" repeatCount="indefinite"/></polygon></g>
+<rect x="0" y="0" width="880" height="3" fill="#5260e0" opacity="0.85"/>
+<rect x="0" y="356" width="880" height="4" fill="#3640a1" opacity="0.5"/>
+</svg>
